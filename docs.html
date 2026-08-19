@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Docs — Vortyx Pulse</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#08080a; --bg-alt:#0d0d10; --ink:#f2f2f4; --ink-dim:#a7a7ae; --ink-faint:#6c6c74;
+    --line:rgba(255,255,255,0.09); --line-bright:rgba(255,255,255,0.18);
+    --glass:rgba(255,255,255,0.045); --glass-hover:rgba(255,255,255,0.075); --radius:12px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:var(--bg); color:var(--ink); font-family:'Inter',sans-serif; -webkit-font-smoothing:antialiased;}
+  a{color:inherit;text-decoration:none;}
+  .mono{font-family:'JetBrains Mono',monospace;}
+  code{font-family:'JetBrains Mono',monospace;}
+
+  header{
+    position:fixed; top:0; left:0; right:0; z-index:100; height:64px; display:flex; align-items:center; justify-content:space-between;
+    padding:0 24px; backdrop-filter:blur(16px); background:rgba(8,8,10,0.7); border-bottom:1px solid var(--line);
+  }
+  .brand{display:flex; align-items:center; gap:10px; font-weight:600; font-size:16px;}
+  .brand-mark{width:24px; height:24px; border-radius:6px; background:linear-gradient(135deg,#fff,#7a7a82); position:relative;}
+  .brand-mark::after{content:''; position:absolute; top:7.5px; left:7.5px; width:8px; height:8px; border-radius:50%; background:#08080a;}
+  .top-links{display:flex; gap:28px; font-size:13.5px; color:var(--ink-dim);}
+  .top-links a:hover{color:var(--ink);}
+  .search-box{
+    display:flex; align-items:center; gap:8px; padding:7px 14px; border:1px solid var(--line); border-radius:8px;
+    background:var(--glass); font-size:13px; color:var(--ink-faint); width:200px;
+  }
+  @media(max-width:900px){.top-links{display:none;} .search-box{display:none;}}
+
+  .layout{display:flex; padding-top:64px; max-width:1400px; margin:0 auto;}
+  aside{
+    width:250px; flex-shrink:0; padding:32px 20px; position:sticky; top:64px; height:calc(100vh - 64px);
+    overflow-y:auto; border-right:1px solid var(--line);
+  }
+  .nav-group{margin-bottom:26px;}
+  .nav-group h5{font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.06em; text-transform:uppercase; color:var(--ink-faint); margin-bottom:10px; padding:0 10px;}
+  .nav-group a{
+    display:block; font-size:13.5px; color:var(--ink-dim); padding:7px 10px; border-radius:7px; margin-bottom:2px; transition:all .15s;
+  }
+  .nav-group a:hover{background:var(--glass); color:var(--ink);}
+  .nav-group a.active{background:var(--glass-hover); color:var(--ink); font-weight:500;}
+  @media(max-width:900px){aside{display:none;}}
+
+  main{flex:1; padding:48px 48px 120px; max-width:840px;}
+  @media(max-width:700px){main{padding:36px 20px 90px;}}
+
+  .doc-section{margin-bottom:64px; scroll-margin-top:80px;}
+  .doc-section h1{font-family:'Space Grotesk',sans-serif; font-size:2rem; font-weight:600; letter-spacing:-0.02em; margin-bottom:14px;}
+  .doc-section h2{font-family:'Space Grotesk',sans-serif; font-size:1.4rem; font-weight:600; letter-spacing:-0.01em; margin:36px 0 14px;}
+  .doc-section h3{font-size:1.05rem; font-weight:600; margin:26px 0 10px;}
+  .doc-section p{color:var(--ink-dim); line-height:1.7; font-size:0.96rem; margin-bottom:14px; max-width:70ch;}
+  .doc-section p code, .doc-section li code{
+    background:var(--glass); border:1px solid var(--line); padding:2px 6px; border-radius:5px; font-size:0.85em; color:var(--ink);
+  }
+  .doc-section ul, .doc-section ol{margin:14px 0 14px 20px; color:var(--ink-dim); font-size:0.94rem; line-height:1.8;}
+
+  .code-block{
+    background:rgba(255,255,255,0.03); border:1px solid var(--line); border-radius:var(--radius);
+    padding:20px 22px; font-size:12.8px; line-height:1.7; overflow-x:auto; margin:16px 0;
+  }
+  .code-block .c1{color:#7c7c85;} .code-block .c2{color:#e9c674;} .code-block .c3{color:#8fc9e0;} .code-block .c4{color:#f2f2f4;} .code-block .c5{color:#a8d8b9;}
+
+  .endpoint-tag{
+    display:inline-flex; align-items:center; gap:8px; font-family:'JetBrains Mono',monospace; font-size:12.5px;
+    padding:6px 12px; border-radius:7px; background:var(--glass); border:1px solid var(--line); margin-bottom:16px;
+  }
+  .method{font-weight:700; padding:2px 8px; border-radius:5px; font-size:11px;}
+  .method.post{background:rgba(255,255,255,0.12); color:var(--ink);}
+
+  table.params{width:100%; border-collapse:collapse; margin:16px 0; font-size:0.87rem;}
+  table.params th, table.params td{text-align:left; padding:10px 14px; border-bottom:1px solid var(--line);}
+  table.params th{color:var(--ink-faint); font-family:'JetBrains Mono',monospace; font-size:11.5px; text-transform:uppercase; letter-spacing:0.04em; font-weight:500;}
+  table.params td{color:var(--ink-dim);}
+  table.params td:first-child{color:var(--ink); font-family:'JetBrains Mono',monospace;}
+  .req{color:var(--ink-dim); font-size:11px; font-family:'JetBrains Mono',monospace;}
+
+  .callout{border:1px solid var(--line); border-left:2px solid var(--ink-dim); border-radius:8px; padding:14px 18px; background:var(--glass); margin:18px 0; font-size:0.88rem; color:var(--ink-dim);}
+  .callout b{color:var(--ink);}
+
+  .next-links{display:flex; justify-content:space-between; margin-top:60px; padding-top:24px; border-top:1px solid var(--line);}
+  .next-links a{font-size:13.5px; color:var(--ink-dim); font-family:'JetBrains Mono',monospace;}
+  .next-links a:hover{color:var(--ink);}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand"><div class="brand-mark"></div><span>Vortyx Pulse</span></div>
+  <div class="top-links">
+    <a href="index.html">Platform</a>
+    <a href="pricing.html">Pricing</a>
+    <a href="#" style="color:var(--ink);">Docs</a>
+    <a href="dashboard.html">Dashboard</a>
+  </div>
+  <div class="search-box"><span>⌕</span><span>Search docs...</span></div>
+</header>
+
+<div class="layout">
+  <aside>
+    <div class="nav-group">
+      <h5>Get Started</h5>
+      <a href="#intro" class="active">Introduction</a>
+      <a href="#auth">Authentication</a>
+      <a href="#quickstart">Quickstart</a>
+    </div>
+    <div class="nav-group">
+      <h5>Core</h5>
+      <a href="#chat">Chat / text</a>
+      <a href="#audio">Audio</a>
+      <a href="#video">Video</a>
+      <a href="#streaming">Streaming</a>
+    </div>
+    <div class="nav-group">
+      <h5>Account</h5>
+      <a href="#keys">API keys</a>
+      <a href="#limits">Rate limits &amp; tiers</a>
+      <a href="#errors">Errors</a>
+    </div>
+  </aside>
+
+  <main>
+    <div class="doc-section" id="intro">
+      <h1>Introduction</h1>
+      <p>Vortyx Pulse gives you a single model, <code>vortyx-1</code>, that reasons across text, audio, and video through one API. Instead of separate providers for chat, speech, and vision, every request goes to the same base URL — you just change the <code>modality</code>.</p>
+      <div class="endpoint-tag"><span>Base URL</span></div>
+      <div class="code-block"><span class="c3">https</span>://api.vortyxpulse.com/v1</div>
+      <p>All requests and responses are JSON over HTTPS, except audio/video binary uploads, which use multipart form data.</p>
+    </div>
+
+    <div class="doc-section" id="auth">
+      <h1>Authentication</h1>
+      <p>Every request must include your API key in the <code>Authorization</code> header. Keys are created and revoked from your <a href="dashboard.html" style="color:var(--ink); text-decoration:underline;">dashboard</a>.</p>
+      <div class="code-block"><span class="c1">1</span>  Authorization: Bearer vp_live_••••••••••••••••</div>
+      <div class="callout"><b>Keep keys server-side.</b> Never expose a live key in client-side code. Use a backend relay if you need to call Vortyx Pulse from a browser or mobile app.</div>
+    </div>
+
+    <div class="doc-section" id="quickstart">
+      <h1>Quickstart</h1>
+      <h3>1. Create a key</h3>
+      <p>Sign up, then generate your first API key from the <code>API Keys</code> tab in your dashboard. Free accounts can create up to 5 keys.</p>
+      <h3>2. Send a request</h3>
+      <div class="code-block"><span class="c1">1</span>  curl https://api.vortyxpulse.com/v1/chat \
+<span class="c1">2</span>    -H <span class="c2">"Authorization: Bearer vp_live_••••••••"</span> \
+<span class="c1">3</span>    -H <span class="c2">"Content-Type: application/json"</span> \
+<span class="c1">4</span>    -d <span class="c2">'{"model": "vortyx-1", "input": "Say hello"}'</span></div>
+      <h3>3. Read the response</h3>
+      <div class="code-block"><span class="c1">1</span>  {
+<span class="c1">2</span>    <span class="c5">"id"</span>: <span class="c2">"resp_8f2ac1"</span>,
+<span class="c1">3</span>    <span class="c5">"model"</span>: <span class="c2">"vortyx-1"</span>,
+<span class="c1">4</span>    <span class="c5">"output"</span>: <span class="c2">"Hello! How can I help?"</span>,
+<span class="c1">5</span>    <span class="c5">"usage"</span>: { <span class="c5">"input_tokens"</span>: <span class="c4">4</span>, <span class="c5">"output_tokens"</span>: <span class="c4">6</span> }
+<span class="c1">6</span>  }</div>
+    </div>
+
+    <div class="doc-section" id="chat">
+      <h1>Chat / text</h1>
+      <div class="endpoint-tag"><span class="method post">POST</span><span>/v1/chat</span></div>
+      <p>Send a text prompt and get a reasoning response back. Supports multi-turn conversation via the <code>messages</code> array.</p>
+      <table class="params">
+        <tr><th>Param</th><th>Type</th><th>Description</th></tr>
+        <tr><td>model</td><td class="mono">string</td><td>Always <code>"vortyx-1"</code> <span class="req">required</span></td></tr>
+        <tr><td>input</td><td class="mono">string</td><td>Prompt text <span class="req">required</span></td></tr>
+        <tr><td>modality</td><td class="mono">string</td><td><code>"text"</code> (default), <code>"audio"</code>, or <code>"video"</code></td></tr>
+        <tr><td>stream</td><td class="mono">boolean</td><td>Stream the response as it's generated</td></tr>
+      </table>
+    </div>
+
+    <div class="doc-section" id="audio">
+      <h1>Audio</h1>
+      <div class="endpoint-tag"><span class="method post">POST</span><span>/v1/audio</span></div>
+      <p>Send speech directly into the model — no separate transcription step. Vortyx Pulse listens, reasons, and can respond in natural spoken audio.</p>
+      <div class="code-block"><span class="c1">1</span>  <span class="c3">from</span> vortyx <span class="c3">import</span> Client
+<span class="c1">2</span>
+<span class="c1">3</span>  client = Client(api_key=<span class="c2">"vp_live_••••••••"</span>)
+<span class="c1">4</span>
+<span class="c1">5</span>  <span class="c3">with</span> open(<span class="c2">"call.wav"</span>, <span class="c2">"rb"</span>) <span class="c3">as</span> f:
+<span class="c1">6</span>      response = client.audio.create(model=<span class="c2">"vortyx-1"</span>, audio=f, voice=<span class="c2">"natural"</span>)</div>
+    </div>
+
+    <div class="doc-section" id="video">
+      <h1>Video</h1>
+      <div class="endpoint-tag"><span class="method post">POST</span><span>/v1/video</span></div>
+      <p>Upload a video file or stream frames — the model reasons across frames rather than sampling a single still image, so it can answer questions about motion, sequence, and timing.</p>
+      <div class="code-block"><span class="c1">1</span>  response = client.video.create(
+<span class="c1">2</span>      model=<span class="c2">"vortyx-1"</span>,
+<span class="c1">3</span>      video=open(<span class="c2">"clip.mp4"</span>, <span class="c2">"rb"</span>),
+<span class="c1">4</span>      input=<span class="c2">"What happens at the 10 second mark?"</span>
+<span class="c1">5</span>  )</div>
+    </div>
+
+    <div class="doc-section" id="streaming">
+      <h1>Streaming</h1>
+      <p>Set <code>"stream": true</code> on any endpoint to receive output incrementally as server-sent events, rather than waiting for the full response.</p>
+      <div class="code-block"><span class="c1">1</span>  <span class="c3">for</span> chunk <span class="c3">in</span> response:
+<span class="c1">2</span>      print(chunk.delta, end=<span class="c2">""</span>)</div>
+    </div>
+
+    <div class="doc-section" id="keys">
+      <h1>API keys</h1>
+      <p>Keys are created from the dashboard and shown once at creation, then masked. Use the eye icon next to a key to reveal it again at any time, or the revoke button to permanently disable it.</p>
+      <ul>
+        <li>Free plan: up to <b style="color:var(--ink);">5</b> active keys</li>
+        <li>Any paid plan: unlimited keys</li>
+        <li>Revoked keys stop working immediately and cannot be restored</li>
+      </ul>
+    </div>
+
+    <div class="doc-section" id="limits">
+      <h1>Rate limits &amp; tiers</h1>
+      <table class="params">
+        <tr><th>Plan</th><th>Keys</th><th>Throttling</th><th>Queue</th></tr>
+        <tr><td>Free</td><td>5 max</td><td>Standard</td><td>Normal</td></tr>
+        <tr><td>Paid (any)</td><td>Unlimited</td><td>None</td><td>Priority</td></tr>
+      </table>
+    </div>
+
+    <div class="doc-section" id="errors">
+      <h1>Errors</h1>
+      <table class="params">
+        <tr><th>Code</th><th>Meaning</th></tr>
+        <tr><td>401</td><td>Missing or invalid API key</td></tr>
+        <tr><td>403</td><td>Key revoked or plan expired</td></tr>
+        <tr><td>422</td><td>Missing required parameter</td></tr>
+        <tr><td>429</td><td>Rate limit exceeded (free tier)</td></tr>
+        <tr><td>500</td><td>Something failed on our side — retry with backoff</td></tr>
+      </table>
+      <div class="next-links">
+        <span></span>
+        <a href="dashboard.html">Go to dashboard →</a>
+      </div>
+    </div>
+  </main>
+</div>
+
+</body>
+</html>
