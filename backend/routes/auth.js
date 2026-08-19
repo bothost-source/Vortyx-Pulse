@@ -6,14 +6,6 @@ const pool = require('../db/pool');
 const router = express.Router();
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
-// ---------------------------------------------------------------------------
-// Frontend flow (see login.html):
-//   1. Google Identity Services renders the "Continue with Google" button.
-//   2. On success, Google gives the browser a signed `credential` (ID token).
-//   3. Frontend POSTs { credential } here.
-//   4. We verify it really came from Google, then find-or-create the user
-//      by their Google email — no OTP, no password, ever.
-// ---------------------------------------------------------------------------
 
 router.post('/google', async (req, res) => {
   const { credential } = req.body;
@@ -33,8 +25,7 @@ router.post('/google', async (req, res) => {
   const { sub: googleId, email, name, picture, email_verified } = payload;
   if (!email_verified) return res.status(403).json({ error: 'Google email is not verified' });
 
-  // Find by google_id first, fall back to email (covers a user who somehow
-  // already exists by email but hasn't linked google_id yet).
+  
   let { rows } = await pool.query('SELECT * FROM users WHERE google_id = $1', [googleId]);
   let user = rows[0];
 
@@ -64,8 +55,7 @@ router.post('/google', async (req, res) => {
   });
 });
 
-// GET /api/auth/me — used by the dashboard/admin on load to confirm the
-// stored token is still valid and to get fresh user info.
+
 router.get('/me', async (req, res) => {
   const header = req.headers.authorization || '';
   const token = header.startsWith('Bearer ') ? header.slice(7) : null;
@@ -79,6 +69,22 @@ router.get('/me', async (req, res) => {
   } catch {
     res.status(401).json({ error: 'Session expired' });
   }
+});
+
+router.post('/bootstrap-admin', async (req, res) => {
+  const { email, secret } = req.body;
+  if (!process.env.ADMIN_BOOTSTRAP_SECRET) {
+    return res.status(403).json({ error: 'Bootstrap disabled — ADMIN_BOOTSTRAP_SECRET is not set' });
+  }
+  if (!secret || secret !== process.env.ADMIN_BOOTSTRAP_SECRET) {
+    return res.status(403).json({ error: 'Invalid secret' });
+  }
+  const { rows } = await pool.query(
+    `UPDATE users SET is_admin = TRUE WHERE email = $1 RETURNING id, email, is_admin`,
+    [email]
+  );
+  if (!rows.length) return res.status(404).json({ error: 'No user with that email — sign in with Google once first' });
+  res.json({ user: rows[0] });
 });
 
 module.exports = router;
