@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard — Vortyx Pulse</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#08080a; --bg-alt:#0d0d10; --ink:#f2f2f4; --ink-dim:#a7a7ae; --ink-faint:#6c6c74;
+    --line:rgba(255,255,255,0.09); --line-bright:rgba(255,255,255,0.18);
+    --glass:rgba(255,255,255,0.045); --glass-hover:rgba(255,255,255,0.075); --radius:12px;
+    --good:#a8d8b9; --warn:#e9c674; --bad:#e0a3a3;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:var(--bg); color:var(--ink); font-family:'Inter',sans-serif; -webkit-font-smoothing:antialiased;}
+  a{color:inherit;text-decoration:none;} button{font-family:inherit;}
+  .mono{font-family:'JetBrains Mono',monospace;}
+
+  .app{display:flex; min-height:100vh;}
+  .sidebar{width:240px; flex-shrink:0; border-right:1px solid var(--line); padding:22px 14px; display:flex; flex-direction:column; position:sticky; top:0; height:100vh;}
+  .brand{display:flex; align-items:center; gap:10px; font-weight:600; font-size:15.5px; padding:6px 10px 22px;}
+  .brand-mark{width:24px; height:24px; border-radius:6px; background:linear-gradient(135deg,#fff,#7a7a82); position:relative;}
+  .brand-mark::after{content:''; position:absolute; top:7.5px; left:7.5px; width:8px; height:8px; border-radius:50%; background:#08080a;}
+  .side-nav{display:flex; flex-direction:column; gap:2px;}
+  .side-nav a{display:flex; align-items:center; gap:11px; font-size:13.8px; color:var(--ink-dim); padding:9px 12px; border-radius:9px; transition:all .15s; cursor:pointer;}
+  .side-nav a .ic{width:16px; text-align:center; font-family:'JetBrains Mono',monospace; font-size:13px; opacity:0.7;}
+  .side-nav a:hover{background:var(--glass); color:var(--ink);}
+  .side-nav a.active{background:var(--glass-hover); color:var(--ink); font-weight:500;}
+  .side-sep{height:1px; background:var(--line); margin:14px 4px;}
+
+  .user-box{display:flex; align-items:center; gap:10px; padding:10px; border:1px solid var(--line); border-radius:10px; margin-bottom:10px; background:var(--glass);}
+  .user-box img{width:28px; height:28px; border-radius:50%; flex-shrink:0;}
+  .user-box .u-name{font-size:12.5px; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .user-box .u-email{font-size:10.5px; color:var(--ink-faint); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+
+  .plan-box{margin-top:auto; border:1px solid var(--line); border-radius:10px; padding:14px; background:var(--glass);}
+  .plan-box .lbl{font-family:'JetBrains Mono',monospace; font-size:10.5px; color:var(--ink-faint); text-transform:uppercase; letter-spacing:0.05em;}
+  .plan-box .name{font-weight:600; font-size:14px; margin:5px 0 3px;}
+  .plan-box .sub{font-size:11.5px; color:var(--ink-faint); margin-bottom:10px;}
+  .plan-box a{display:block; text-align:center; background:var(--ink); color:#0a0a0c; font-size:12.5px; font-weight:500; padding:8px; border-radius:8px;}
+
+  main{flex:1; padding:34px 42px 80px; max-width:1180px;}
+  @media(max-width:700px){main{padding:24px 18px 60px;} .sidebar{width:70px;} .sidebar .lbl-text{display:none;} .user-box{justify-content:center;}}
+
+  .page-top{display:flex; justify-content:space-between; align-items:center; margin-bottom:32px; flex-wrap:wrap; gap:14px;}
+  .page-top h1{font-family:'Space Grotesk',sans-serif; font-size:1.7rem; font-weight:600; letter-spacing:-0.02em;}
+  .page-top p{color:var(--ink-faint); font-size:13.5px; margin-top:4px;}
+
+  .btn{padding:9px 18px; border-radius:9px; font-size:13.5px; font-weight:500; border:1px solid var(--line-bright); cursor:pointer; transition:all .2s; background:transparent; color:var(--ink);}
+  .btn-solid{background:var(--ink); color:#0a0a0c; border-color:var(--ink);}
+  .btn-solid:hover{background:#d8d8dc;}
+  .btn-ghost{color:var(--ink-dim); border-color:var(--line);}
+  .btn-ghost:hover{color:var(--ink); border-color:var(--line-bright);}
+  .btn:disabled{opacity:0.4; cursor:not-allowed;}
+
+  .view{display:none;} .view.active{display:block;}
+
+  .grid-3{display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:32px;}
+  .stat-card{border:1px solid var(--line); border-radius:var(--radius); padding:22px; background:var(--glass);}
+  .stat-card .lbl{font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--ink-faint); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:10px;}
+  .stat-card .val{font-family:'Space Grotesk',sans-serif; font-size:1.9rem; font-weight:600;}
+  .stat-card .delta{font-size:12px; color:var(--ink-faint); margin-top:6px;}
+
+  .panel{border:1px solid var(--line); border-radius:var(--radius); background:var(--glass); overflow:hidden; margin-bottom:24px;}
+  .panel-head{display:flex; justify-content:space-between; align-items:center; padding:18px 22px; border-bottom:1px solid var(--line);}
+  .panel-head h3{font-family:'Space Grotesk',sans-serif; font-size:1rem; font-weight:600;}
+
+  .key-row{display:flex; align-items:center; gap:14px; padding:14px 22px; border-bottom:1px solid var(--line); flex-wrap:wrap;}
+  .key-row:last-child{border-bottom:none;}
+  .key-row .name{font-weight:500; font-size:13.8px; width:150px; flex-shrink:0;}
+  .key-value{flex:1; font-family:'JetBrains Mono',monospace; font-size:12.8px; color:var(--ink-dim); background:rgba(255,255,255,0.02); border:1px solid var(--line); padding:7px 12px; border-radius:7px; display:flex; justify-content:space-between; align-items:center; gap:10px; min-width:160px;}
+  .key-value .k{overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .eye-btn{background:none; border:none; color:var(--ink-faint); cursor:pointer; font-size:14px; flex-shrink:0;}
+  .eye-btn:hover{color:var(--ink);}
+  .key-meta{font-size:11.5px; color:var(--ink-faint); width:90px; flex-shrink:0; text-align:right;}
+  .revoke-btn{color:var(--bad); background:none; border:1px solid rgba(224,163,163,0.35); border-radius:7px; padding:6px 12px; font-size:12px; cursor:pointer; flex-shrink:0;}
+  .revoke-btn:hover{background:rgba(224,163,163,0.1);}
+
+  .limit-bar-wrap{padding:16px 22px; border-top:1px solid var(--line);}
+  .limit-bar-top{display:flex; justify-content:space-between; font-size:12px; color:var(--ink-faint); margin-bottom:8px;}
+  .limit-bar{height:6px; border-radius:100px; background:rgba(255,255,255,0.06); overflow:hidden;}
+  .limit-bar-fill{height:100%; background:var(--ink); border-radius:100px; transition:width .3s;}
+  .limit-note{font-size:11.5px; color:var(--ink-faint); margin-top:8px;}
+
+  .empty-note{padding:44px 22px; text-align:center; color:var(--ink-faint); font-size:13px; line-height:1.6;}
+  .error-note{padding:16px 22px; color:var(--bad); font-size:12.8px; background:rgba(224,163,163,0.08);}
+
+  .usage-chart{display:flex; align-items:flex-end; gap:6px; height:120px; padding:22px;}
+  .usage-bar{flex:1; background:rgba(255,255,255,0.1); border-radius:4px 4px 0 0; transition:background .2s; min-height:2px;}
+  .usage-bar:hover{background:rgba(255,255,255,0.22);}
+
+  .plan-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:28px;}
+  .plan-tile{border:1px solid var(--line); border-radius:10px; padding:18px; background:var(--glass); cursor:pointer; transition:all .2s;}
+  .plan-tile:hover{border-color:var(--line-bright);}
+  .plan-tile.selected{border-color:var(--line-bright); background:var(--glass-hover);}
+  .plan-tile .n{font-weight:600; font-size:13.5px; margin-bottom:6px;}
+  .plan-tile .p{font-family:'Space Grotesk',sans-serif; font-size:1.4rem; font-weight:600;}
+  .plan-tile .p span{font-size:11px; color:var(--ink-faint); font-family:'Inter';}
+
+  .pay-methods{display:flex; gap:10px; margin-bottom:20px; flex-wrap:wrap;}
+  .pay-method{border:1px solid var(--line); border-radius:9px; padding:12px 18px; font-size:13px; cursor:pointer; display:flex; align-items:center; gap:8px; transition:all .2s;}
+  .pay-method.selected{border-color:var(--line-bright); background:var(--glass-hover);}
+  .crypto-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-top:14px;}
+  .crypto-opt{border:1px solid var(--line); border-radius:8px; padding:10px; text-align:center; font-family:'JetBrains Mono',monospace; font-size:12px; cursor:pointer; transition:all .2s;}
+  .crypto-opt.selected{border-color:var(--line-bright); background:var(--glass-hover);}
+  .pending-note{display:flex; gap:12px; align-items:flex-start; border:1px solid var(--line); border-radius:10px; padding:16px 18px; background:var(--glass); margin-top:16px; font-size:12.8px; color:var(--ink-dim); line-height:1.6;}
+  .tx-input{width:100%; margin-top:12px; background:rgba(255,255,255,0.03); border:1px solid var(--line); color:var(--ink); padding:9px 12px; border-radius:8px; font-size:13px; font-family:'JetBrains Mono',monospace;}
+
+  .status-pill{font-family:'JetBrains Mono',monospace; font-size:11px; padding:3px 9px; border-radius:100px; text-transform:uppercase; letter-spacing:0.03em;}
+  .status-pill.completed{background:rgba(168,216,185,0.12); color:var(--good);}
+  .status-pill.pending{background:rgba(233,198,116,0.12); color:var(--warn);}
+  .status-pill.rejected{background:rgba(224,163,163,0.12); color:var(--bad);}
+
+  .bill-row{display:flex; justify-content:space-between; align-items:center; padding:13px 22px; border-bottom:1px solid var(--line); font-size:13px;}
+  .bill-row:last-child{border-bottom:none;}
+  .bill-row .l{color:var(--ink-dim);}
+  .bill-row .r{display:flex; align-items:center; gap:10px;}
+
+  .toast{position:fixed; bottom:26px; left:50%; transform:translateX(-50%) translateY(20px); opacity:0; background:var(--ink); color:#0a0a0c; padding:11px 20px; border-radius:100px; font-size:13px; font-weight:500; transition:all .3s ease; z-index:200; pointer-events:none; max-width:90vw; text-align:center;}
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+  .toast.bad{background:#e0a3a3;}
+
+  .config-warning{background:rgba(233,198,116,0.08); border:1px solid rgba(233,198,116,0.25); color:var(--warn); font-size:12.5px; padding:12px 18px; border-radius:10px; margin-bottom:20px; display:none;}
+
+  @media(max-width:900px){.grid-3{grid-template-columns:1fr;} .plan-grid{grid-template-columns:repeat(2,1fr);} .crypto-grid{grid-template-columns:repeat(2,1fr);}}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="sidebar">
+    <div class="brand"><div class="brand-mark"></div><span class="lbl-text">Vortyx Pulse</span></div>
+    <div class="user-box" id="userBox"></div>
+    <div class="side-nav">
+      <a class="active" data-view="overview"><span class="ic">◆</span><span class="lbl-text">Overview</span></a>
+      <a data-view="keys"><span class="ic">⚿</span><span class="lbl-text">API Keys</span></a>
+      <a data-view="usage"><span class="ic">▤</span><span class="lbl-text">Usage</span></a>
+      <a data-view="billing"><span class="ic">$</span><span class="lbl-text">Billing</span></a>
+      <div class="side-sep"></div>
+      <a href="docs.html"><span class="ic">▣</span><span class="lbl-text">Docs</span></a>
+      <a id="logoutBtn"><span class="ic">⏻</span><span class="lbl-text">Sign out</span></a>
+    </div>
+    <div class="plan-box">
+      <div class="lbl lbl-text">Current plan</div>
+      <div class="name lbl-text" id="sidePlanName">—</div>
+      <div class="sub lbl-text" id="sidePlanSub">—</div>
+      <a data-view="billing" class="lbl-text">Upgrade</a>
+    </div>
+  </div>
+
+  <main>
+    <div class="config-warning" id="configWarning">API_BASE isn't configured yet — edit the API_BASE constant near the top of this file's script to point at your deployed backend.</div>
+
+    <!-- OVERVIEW -->
+    <div class="view active" id="view-overview">
+      <div class="page-top"><div><h1>Overview</h1><p>Welcome back — here's what's happening with your account.</p></div></div>
+      <div class="grid-3">
+        <div class="stat-card"><div class="lbl">Active API keys</div><div class="val" id="ovKeyCount">—</div><div class="delta" id="ovKeyDelta"></div></div>
+        <div class="stat-card"><div class="lbl">Requests this month</div><div class="val" id="ovRequests">—</div><div class="delta">Text + audio + video combined</div></div>
+        <div class="stat-card"><div class="lbl">Plan status</div><div class="val" id="ovPlan" style="font-size:1.4rem;">—</div><div class="delta" id="ovPlanSub"></div></div>
+      </div>
+    </div>
+
+    <!-- API KEYS -->
+    <div class="view" id="view-keys">
+      <div class="page-top">
+        <div><h1>API Keys</h1><p>Create, reveal, and revoke keys used to authenticate requests.</p></div>
+        <button class="btn btn-solid" id="createKeyBtn">+ Create key</button>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h3>Your keys</h3><span class="mono" style="font-size:12px; color:var(--ink-faint);" id="keyCountLbl"></span></div>
+        <div class="panel-body" id="keyList"><div class="empty-note">Loading...</div></div>
+        <div class="limit-bar-wrap" id="limitBarWrap" style="display:none;">
+          <div class="limit-bar-top"><span>Free tier key limit</span><span id="limitText">0 / 5</span></div>
+          <div class="limit-bar"><div class="limit-bar-fill" id="limitFill" style="width:0%;"></div></div>
+          <div class="limit-note">Upgrade to any paid plan to create unlimited API keys.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- USAGE -->
+    <div class="view" id="view-usage">
+      <div class="page-top"><div><h1>Usage</h1><p>Requests across all your API keys, last 14 days.</p></div></div>
+      <div class="panel">
+        <div class="panel-head"><h3>Requests / day</h3></div>
+        <div id="usageChartWrap"><div class="empty-note">Loading...</div></div>
+      </div>
+      <div class="grid-3">
+        <div class="stat-card"><div class="lbl">Text requests</div><div class="val" id="usageText">—</div></div>
+        <div class="stat-card"><div class="lbl">Audio requests</div><div class="val" id="usageAudio">—</div></div>
+        <div class="stat-card"><div class="lbl">Video requests</div><div class="val" id="usageVideo">—</div></div>
+      </div>
+    </div>
+
+    <!-- BILLING -->
+    <div class="view" id="view-billing">
+      <div class="page-top"><div><h1>Billing</h1><p>Manage your plan and payment methods.</p></div></div>
+
+      <div class="panel">
+        <div class="panel-head"><h3>Choose a plan</h3></div>
+        <div style="padding:22px;">
+          <div class="plan-grid">
+            <div class="plan-tile" data-plan="free"><div class="n">Free</div><div class="p">$0</div></div>
+            <div class="plan-tile selected" data-plan="3mo"><div class="n">3-Month</div><div class="p">$5 <span>/ 3mo</span></div></div>
+            <div class="plan-tile" data-plan="annual"><div class="n">Annual</div><div class="p">$10 <span>/ yr</span></div></div>
+            <div class="plan-tile" data-plan="perm"><div class="n">Permanent</div><div class="p">$25 <span>once</span></div></div>
+          </div>
+
+          <div class="lbl mono" style="font-size:11px; color:var(--ink-faint); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:10px;">Payment method</div>
+          <div class="pay-methods">
+            <div class="pay-method selected" data-method="card">💳 Card (Stripe)</div>
+            <div class="pay-method" data-method="crypto">₿ Crypto</div>
+          </div>
+
+          <div id="cryptoOptions" style="display:none;">
+            <div class="crypto-grid">
+              <div class="crypto-opt selected" data-coin="USDT">USDT</div>
+              <div class="crypto-opt" data-coin="BTC">BTC</div>
+              <div class="crypto-opt" data-coin="LTC">LTC</div>
+              <div class="crypto-opt" data-coin="ETH">ETH</div>
+            </div>
+            <input type="text" class="tx-input" id="txRefInput" placeholder="Transaction hash (optional, speeds up confirmation)">
+            <div class="pending-note">
+              <span>⏱</span>
+              <span>Crypto payments are verified manually by our team. After sending payment, your plan will be activated within <b style="color:var(--ink);">12 hours or less</b> — you'll see it as "Pending" below until confirmed.</span>
+            </div>
+          </div>
+
+          <button class="btn btn-solid" id="payBtn" style="margin-top:20px;">Pay $5 with Card</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><h3>Payment history</h3></div>
+        <div id="paymentHistory"><div class="empty-note">Loading...</div></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div class="toast" id="toast">Saved</div>
+
+<script>
+  // Point this at your deployed backend (see /home/claude/vortyx-backend, deploy to Render).
+  const API_BASE = "https://your-backend.onrender.com";
+
+  const token = localStorage.getItem('vortyx_token');
+  if (!token) window.location.href = 'login.html';
+
+  function toast(msg, bad=false){
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.classList.toggle('bad', bad);
+    t.classList.add('show');
+    setTimeout(()=>t.classList.remove('show'), 2600);
+  }
+
+  async function api(path, opts={}){
+    const res = await fetch(API_BASE + path, {
+      ...opts,
+      headers: { 'Content-Type':'application/json', 'Authorization': 'Bearer ' + token, ...(opts.headers||{}) }
+    });
+    const data = await res.json().catch(()=>({}));
+    if (res.status === 401) { localStorage.removeItem('vortyx_token'); window.location.href = 'login.html'; throw new Error('Session expired'); }
+    if (!res.ok) throw new Error(data.error || 'Request failed');
+    return data;
+  }
+
+  if (API_BASE.includes('your-backend')) document.getElementById('configWarning').style.display = 'block';
+
+  // ---------- nav ----------
+  document.querySelectorAll('.side-nav a[data-view]').forEach(a=>{
+    a.addEventListener('click', ()=>{
+      document.querySelectorAll('.side-nav a[data-view]').forEach(x=>x.classList.remove('active'));
+      a.classList.add('active');
+      document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+      document.getElementById('view-'+a.dataset.view).classList.add('active');
+    });
+  });
+  document.getElementById('logoutBtn').addEventListener('click', ()=>{
+    localStorage.removeItem('vortyx_token'); localStorage.removeItem('vortyx_user');
+    window.location.href = 'login.html';
+  });
+
+  // ---------- current user / plan ----------
+  let currentUser = null;
+  const PLAN_LABEL = {free:'Free', '3mo':'3-Month Premium', annual:'Annual Premium', perm:'Permanent'};
+
+  async function loadMe(){
+    try {
+      const { user } = await api('/api/auth/me');
+      currentUser = user;
+      document.getElementById('userBox').innerHTML = `
+        ${user.avatar_url ? `<img src="${user.avatar_url}">` : ''}
+        <div class="lbl-text"><div class="u-name">${user.name || user.email}</div><div class="u-email">${user.email}</div></div>`;
+      document.getElementById('sidePlanName').textContent = PLAN_LABEL[user.plan] || user.plan;
+      document.getElementById('ovPlan').textContent = PLAN_LABEL[user.plan] || user.plan;
+      document.getElementById('sidePlanSub').textContent = user.plan === 'free' ? 'Expires 30 days after signup' : (user.plan === 'perm' ? 'Lifetime access' : 'Renews automatically');
+      document.getElementById('ovPlanSub').textContent = document.getElementById('sidePlanSub').textContent;
+    } catch(e){
+      toast(e.message, true);
+    }
+  }
+
+  // ---------- API keys ----------
+  let cachedKeys = [];
+  function maskPrefix(prefix){ return prefix + '••••••••••••'; }
+
+  async function loadKeys(){
+    try {
+      const { keys } = await api('/api/keys');
+      cachedKeys = keys;
+      renderKeys();
+      updateOverviewFromKeys();
+    } catch(e){
+      document.getElementById('keyList').innerHTML = `<div class="error-note">Couldn't load keys: ${e.message}</div>`;
+    }
+  }
+
+  function renderKeys(){
+    const active = cachedKeys.filter(k=>!k.revoked);
+    const list = document.getElementById('keyList');
+    if (active.length === 0){
+      list.innerHTML = `<div class="empty-note">No API keys yet. Click "Create key" to make your first one.</div>`;
+    } else {
+      list.innerHTML = active.map(k=>`
+        <div class="key-row">
+          <div class="name">${k.name}</div>
+          <div class="key-value"><span class="k mono">${k._reveal ? k._fullKey : maskPrefix(k.key_prefix)}</span>
+            ${k._fullKey ? `<button class="eye-btn" data-eye="${k.id}">${k._reveal ? '🙈' : '👁'}</button>` : ''}
+          </div>
+          <div class="key-meta">${new Date(k.created_at).toISOString().slice(0,10)}</div>
+          <button class="revoke-btn" data-revoke="${k.id}">Revoke</button>
+        </div>`).join('');
+    }
+    document.querySelectorAll('[data-eye]').forEach(b=>{
+      b.addEventListener('click', ()=>{
+        const k = cachedKeys.find(x=>x.id===b.dataset.eye);
+        k._reveal = !k._reveal;
+        renderKeys();
+      });
+    });
+    document.querySelectorAll('[data-revoke]').forEach(b=>{
+      b.addEventListener('click', async ()=>{
+        const k = cachedKeys.find(x=>x.id===b.dataset.revoke);
+        if(!confirm(`Revoke key "${k.name}"? This can't be undone.`)) return;
+        try {
+          await api('/api/keys/'+k.id, { method:'DELETE' });
+          k.revoked = true;
+          renderKeys(); updateOverviewFromKeys();
+          toast('Key revoked');
+        } catch(e){ toast(e.message, true); }
+      });
+    });
+
+    const activeCount = active.length;
+    document.getElementById('keyCountLbl').textContent = currentUser?.plan === 'free' ? `${activeCount} of 5 used` : `${activeCount} used · unlimited`;
+    const limitWrap = document.getElementById('limitBarWrap');
+    if (currentUser?.plan === 'free'){
+      limitWrap.style.display = 'block';
+      document.getElementById('limitText').textContent = `${activeCount} / 5`;
+      document.getElementById('limitFill').style.width = Math.min(100,(activeCount/5)*100)+'%';
+      document.getElementById('createKeyBtn').disabled = activeCount >= 5;
+    } else {
+      limitWrap.style.display = 'none';
+      document.getElementById('createKeyBtn').disabled = false;
+    }
+  }
+
+  function updateOverviewFromKeys(){
+    const activeCount = cachedKeys.filter(k=>!k.revoked).length;
+    document.getElementById('ovKeyCount').textContent = currentUser?.plan==='free' ? `${activeCount} / 5` : `${activeCount}`;
+    document.getElementById('ovKeyDelta').textContent = currentUser?.plan==='free' ? 'Free plan limit' : 'Unlimited on your plan';
+  }
+
+  document.getElementById('createKeyBtn').addEventListener('click', async ()=>{
+    const name = prompt('Name this API key (e.g. "prod-server"):');
+    if(!name) return;
+    try {
+      const { key } = await api('/api/keys', { method:'POST', body: JSON.stringify({ name }) });
+      cachedKeys.unshift({ ...key, revoked:false, _reveal:true, _fullKey:key.full_key });
+      renderKeys(); updateOverviewFromKeys();
+      toast('API key created — copy it now, it won\'t be shown in full again');
+    } catch(e){ toast(e.message, true); }
+  });
+
+  // ---------- usage ----------
+  async function loadUsage(){
+    try {
+      const { byModality, daily } = await api('/api/usage/mine');
+      document.getElementById('usageText').textContent = byModality.text;
+      document.getElementById('usageAudio').textContent = byModality.audio;
+      document.getElementById('usageVideo').textContent = byModality.video;
+      const total = byModality.text + byModality.audio + byModality.video;
+      document.getElementById('ovRequests').textContent = total;
+
+      const wrap = document.getElementById('usageChartWrap');
+      if (!daily.length){
+        wrap.innerHTML = `<div class="empty-note">No requests yet. Once your API keys start receiving traffic, daily volume will show up here.</div>`;
+      } else {
+        const max = Math.max(...daily.map(d=>d.requests), 1);
+        wrap.innerHTML = `<div class="usage-chart">${daily.map(d=>`<div class="usage-bar" style="height:${(d.requests/max)*100}%" title="${d.requests} requests"></div>`).join('')}</div>`;
+      }
+    } catch(e){
+      document.getElementById('usageChartWrap').innerHTML = `<div class="error-note">Couldn't load usage: ${e.message}</div>`;
+    }
+  }
+
+  // ---------- billing ----------
+  const planPrices = {free:0, '3mo':5, annual:10, perm:25};
+  const planLabels = {free:'Free', '3mo':'3-Month', annual:'Annual', perm:'Permanent'};
+  let selectedPlan = '3mo', selectedMethod = 'card', selectedCoin = 'USDT';
+
+  document.querySelectorAll('.plan-tile').forEach(t=>{
+    t.addEventListener('click', ()=>{
+      document.querySelectorAll('.plan-tile').forEach(x=>x.classList.remove('selected'));
+      t.classList.add('selected'); selectedPlan = t.dataset.plan; updatePayBtn();
+    });
+  });
+  document.querySelectorAll('.pay-method').forEach(m=>{
+    m.addEventListener('click', ()=>{
+      document.querySelectorAll('.pay-method').forEach(x=>x.classList.remove('selected'));
+      m.classList.add('selected'); selectedMethod = m.dataset.method;
+      document.getElementById('cryptoOptions').style.display = selectedMethod==='crypto' ? 'block' : 'none';
+      updatePayBtn();
+    });
+  });
+  document.querySelectorAll('.crypto-opt').forEach(c=>{
+    c.addEventListener('click', ()=>{
+      document.querySelectorAll('.crypto-opt').forEach(x=>x.classList.remove('selected'));
+      c.classList.add('selected'); selectedCoin = c.dataset.coin; updatePayBtn();
+    });
+  });
+  function updatePayBtn(){
+    const btn = document.getElementById('payBtn');
+    const price = planPrices[selectedPlan];
+    if (selectedPlan === 'free'){ btn.textContent = 'Switch to Free'; return; }
+    btn.textContent = selectedMethod === 'card' ? `Pay $${price} with Card` : `Pay $${price} with ${selectedCoin}`;
+  }
+
+  async function loadPayments(){
+    try {
+      const { payments } = await api('/api/payments/mine');
+      const wrap = document.getElementById('paymentHistory');
+      if (!payments.length){
+        wrap.innerHTML = `<div class="empty-note">No payments yet. Upgrade above to see your history here.</div>`;
+      } else {
+        wrap.innerHTML = payments.map(p=>`
+          <div class="bill-row">
+            <span class="l">${planLabels[p.plan] || p.plan} — ${p.method}</span>
+            <span class="r"><span class="status-pill ${p.status}">${p.status}</span><span class="mono" style="color:var(--ink-faint);">${new Date(p.created_at).toISOString().slice(0,10)}</span></span>
+          </div>`).join('');
+      }
+    } catch(e){
+      document.getElementById('paymentHistory').innerHTML = `<div class="error-note">Couldn't load payment history: ${e.message}</div>`;
+    }
+  }
+
+  document.getElementById('payBtn').addEventListener('click', async ()=>{
+    if (selectedPlan === 'free'){ toast('You are already able to use the Free plan by simply not upgrading.'); return; }
+    try {
+      if (selectedMethod === 'crypto'){
+        const txReference = document.getElementById('txRefInput').value.trim();
+        await api('/api/payments/crypto', { method:'POST', body: JSON.stringify({ plan: selectedPlan, coin: selectedCoin, txReference }) });
+        toast(`Payment recorded — send ${selectedCoin} and it'll confirm within 12h`);
+      } else {
+        await api('/api/payments/card', { method:'POST', body: JSON.stringify({ plan: selectedPlan }) });
+        toast('Card payment started — connect Stripe on the backend to complete checkout');
+      }
+      loadPayments();
+    } catch(e){ toast(e.message, true); }
+  });
+
+  // ---------- boot ----------
+  (async function boot(){
+    await loadMe();
+    await Promise.all([loadKeys(), loadUsage(), loadPayments()]);
+  })();
+</script>
+
+</body>
+</html>
