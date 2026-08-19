@@ -40,42 +40,82 @@
   // Set this to wherever your backend is deployed on Render.
   const API_BASE = "https://vortyx-pulse-backend.onrender.com";
 
+  console.log('=== PAGE LOADED ===');
+  console.log('GOOGLE_CLIENT_ID:', GOOGLE_CLIENT_ID);
+  console.log('API_BASE:', API_BASE);
+
   function showError(msg){
+    console.error('showError called:', msg);
     const box = document.getElementById('errorBox');
     box.textContent = msg;
     box.style.display = 'block';
   }
 
   async function handleCredentialResponse(response){
+    console.log('handleCredentialResponse called');
+    console.log('response:', response);
+    console.log('response.credential:', response.credential ? 'Present (length: ' + response.credential.length + ')' : 'MISSING');
+    
     try {
+      console.log('Fetching:', API_BASE + '/api/auth/google');
       const res = await fetch(`${API_BASE}/api/auth/google`, {
         method: 'POST',
         headers: {'Content-Type':'application/json'},
         body: JSON.stringify({ credential: response.credential })
       });
+      console.log('Response status:', res.status);
+      console.log('Response ok:', res.ok);
+      
       const data = await res.json();
-      if(!res.ok){ showError(data.error || 'Sign-in failed'); return; }
+      console.log('Response data:', data);
+      
+      if(!res.ok){ 
+        console.error('Response not ok, showing error');
+        showError(data.error || 'Sign-in failed'); 
+        return; 
+      }
+      
+      console.log('Sign-in successful, storing data');
       localStorage.setItem('vortyx_token', data.token);
       localStorage.setItem('vortyx_user', JSON.stringify(data.user));
-      window.location.href = data.user.is_admin ? 'admin.html' : 'dashboard.html';
+      
+      const redirect = data.user.is_admin ? 'admin.html' : 'dashboard.html';
+      console.log('Redirecting to:', redirect);
+      window.location.href = redirect;
+      
     } catch(err){
+      console.error('=== CATCH BLOCK ERROR ===');
+      console.error('Error name:', err.name);
+      console.error('Error message:', err.message);
+      console.error('Error stack:', err.stack);
       showError('Could not reach the server. Please try again.');
     }
   }
 
   window.onload = function(){
+    console.log('window.onload fired');
+    
     if(GOOGLE_CLIENT_ID.startsWith('YOUR_')){
+      console.error('GOOGLE_CLIENT_ID not configured');
       showError('Google Client ID not configured yet — set GOOGLE_CLIENT_ID in this file.');
       return;
     }
+    
+    console.log('Initializing google.accounts.id');
+    console.log('google object:', google);
+    console.log('google.accounts:', google ? google.accounts : 'undefined');
+    
     google.accounts.id.initialize({
       client_id: GOOGLE_CLIENT_ID,
       callback: handleCredentialResponse
     });
+    console.log('Google initialized');
+    
     google.accounts.id.renderButton(
       document.getElementById('googleBtnContainer'),
       { theme: 'filled_black', size: 'large', shape: 'pill', width: 280 }
     );
+    console.log('Button rendered');
   };
 </script>
 
