@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — Vortyx Pulse</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#08080a; --bg-alt:#0d0d10; --ink:#f2f2f4; --ink-dim:#a7a7ae; --ink-faint:#6c6c74;
+    --line:rgba(255,255,255,0.09); --line-bright:rgba(255,255,255,0.18);
+    --glass:rgba(255,255,255,0.045); --glass-hover:rgba(255,255,255,0.075); --radius:12px;
+    --good:#a8d8b9; --warn:#e9c674; --bad:#e0a3a3;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:var(--bg); color:var(--ink); font-family:'Inter',sans-serif; -webkit-font-smoothing:antialiased;}
+  a{color:inherit;text-decoration:none;} button{font-family:inherit;}
+  .mono{font-family:'JetBrains Mono',monospace;}
+
+  .app{display:flex; min-height:100vh;}
+  .sidebar{width:230px; flex-shrink:0; border-right:1px solid var(--line); padding:22px 14px; display:flex; flex-direction:column; position:sticky; top:0; height:100vh;}
+  .brand{display:flex; align-items:center; gap:10px; font-weight:600; font-size:15px; padding:6px 10px 6px;}
+  .brand-mark{width:24px; height:24px; border-radius:6px; background:linear-gradient(135deg,#fff,#7a7a82); position:relative;}
+  .brand-mark::after{content:''; position:absolute; top:7.5px; left:7.5px; width:8px; height:8px; border-radius:50%; background:#08080a;}
+  .admin-badge{font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--ink-faint); padding:0 10px 18px; letter-spacing:0.06em; text-transform:uppercase;}
+  .side-nav{display:flex; flex-direction:column; gap:2px;}
+  .side-nav a{display:flex; align-items:center; gap:11px; font-size:13.8px; color:var(--ink-dim); padding:9px 12px; border-radius:9px; transition:all .15s; cursor:pointer;}
+  .side-nav a .ic{width:16px; text-align:center; font-family:'JetBrains Mono',monospace; font-size:13px; opacity:0.7;}
+  .side-nav a:hover{background:var(--glass); color:var(--ink);}
+  .side-nav a.active{background:var(--glass-hover); color:var(--ink); font-weight:500;}
+  .badge-count{margin-left:auto; font-family:'JetBrains Mono',monospace; font-size:10.5px; background:rgba(233,198,116,0.15); color:var(--warn); padding:1px 7px; border-radius:100px;}
+  .side-sep{height:1px; background:var(--line); margin:14px 4px;}
+
+  main{flex:1; padding:34px 42px 80px; max-width:1300px;}
+  @media(max-width:700px){main{padding:22px 16px 60px;}}
+  .page-top{display:flex; justify-content:space-between; align-items:center; margin-bottom:28px; flex-wrap:wrap; gap:14px;}
+  .page-top h1{font-family:'Space Grotesk',sans-serif; font-size:1.6rem; font-weight:600; letter-spacing:-0.02em;}
+  .page-top p{color:var(--ink-faint); font-size:13.5px; margin-top:4px;}
+
+  .view{display:none;} .view.active{display:block;}
+
+  .grid-4{display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:28px;}
+  .grid-2{display:grid; grid-template-columns:repeat(2,1fr); gap:16px; margin-bottom:28px;}
+  .stat-card{border:1px solid var(--line); border-radius:var(--radius); padding:20px; background:var(--glass);}
+  .stat-card .lbl{font-family:'JetBrains Mono',monospace; font-size:10.5px; color:var(--ink-faint); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:9px;}
+  .stat-card .val{font-family:'Space Grotesk',sans-serif; font-size:1.7rem; font-weight:600;}
+
+  .panel{border:1px solid var(--line); border-radius:var(--radius); background:var(--glass); overflow:hidden; margin-bottom:24px;}
+  .panel-head{display:flex; justify-content:space-between; align-items:center; padding:16px 20px; border-bottom:1px solid var(--line); flex-wrap:wrap; gap:10px;}
+  .panel-head h3{font-family:'Space Grotesk',sans-serif; font-size:0.98rem; font-weight:600;}
+
+  .tabs{display:flex; gap:6px;}
+  .tab{font-family:'JetBrains Mono',monospace; font-size:12px; padding:6px 13px; border-radius:7px; color:var(--ink-faint); cursor:pointer; border:1px solid transparent;}
+  .tab.active{color:var(--ink); background:var(--glass-hover); border-color:var(--line);}
+
+  table.data{width:100%; border-collapse:collapse; font-size:13px;}
+  table.data th{text-align:left; padding:11px 20px; color:var(--ink-faint); font-family:'JetBrains Mono',monospace; font-size:10.5px; text-transform:uppercase; letter-spacing:0.04em; border-bottom:1px solid var(--line); font-weight:500;}
+  table.data td{padding:12px 20px; border-bottom:1px solid var(--line); color:var(--ink-dim);}
+  table.data tr:last-child td{border-bottom:none;}
+  table.data td:first-child{color:var(--ink);}
+  table.data tr:hover td{background:rgba(255,255,255,0.02);}
+
+  .status-pill{font-family:'JetBrains Mono',monospace; font-size:10.5px; padding:3px 9px; border-radius:100px; text-transform:uppercase; letter-spacing:0.03em;}
+  .status-pill.completed{background:rgba(168,216,185,0.12); color:var(--good);}
+  .status-pill.pending{background:rgba(233,198,116,0.12); color:var(--warn);}
+  .status-pill.rejected, .status-pill.open, .status-pill.suspended{background:rgba(224,163,163,0.12); color:var(--bad);}
+  .status-pill.resolved, .status-pill.active, .status-pill.revoked{background:rgba(255,255,255,0.08); color:var(--ink-dim);}
+
+  .btn{padding:6px 13px; border-radius:7px; font-size:12px; font-weight:500; border:1px solid var(--line-bright); cursor:pointer; background:transparent; color:var(--ink); transition:all .2s;}
+  .btn-solid{background:var(--ink); color:#0a0a0c; border-color:var(--ink);}
+  .btn-solid:hover{background:#d8d8dc;}
+  .btn-bad{color:var(--bad); border-color:rgba(224,163,163,0.35);}
+  .btn-bad:hover{background:rgba(224,163,163,0.1);}
+  .btn-row{display:flex; gap:6px;}
+
+  .empty-note{padding:40px 20px; text-align:center; color:var(--ink-faint); font-size:13px;}
+  .error-note{padding:16px 20px; color:var(--bad); font-size:12.8px; background:rgba(224,163,163,0.08);}
+
+  .chart-simple{display:flex; align-items:flex-end; gap:5px; height:110px; padding:20px;}
+  .chart-bar{flex:1; background:rgba(255,255,255,0.1); border-radius:3px 3px 0 0; min-height:2px;}
+
+  input[type=text]{background:rgba(255,255,255,0.03); border:1px solid var(--line); color:var(--ink); padding:8px 12px; border-radius:8px; font-size:13px; font-family:inherit;}
+
+  .toast{position:fixed; bottom:26px; left:50%; transform:translateX(-50%) translateY(20px); opacity:0; background:var(--ink); color:#0a0a0c; padding:11px 20px; border-radius:100px; font-size:13px; font-weight:500; transition:all .3s ease; z-index:200; max-width:90vw; text-align:center;}
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+  .toast.bad{background:#e0a3a3;}
+
+  .config-warning{background:rgba(233,198,116,0.08); border:1px solid rgba(233,198,116,0.25); color:var(--warn); font-size:12.5px; padding:12px 18px; border-radius:10px; margin-bottom:20px; display:none;}
+
+  @media(max-width:900px){.grid-4{grid-template-columns:repeat(2,1fr);} .grid-2{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="sidebar">
+    <div class="brand"><div class="brand-mark"></div><span>Vortyx Pulse</span></div>
+    <div class="admin-badge">Admin console</div>
+    <div class="side-nav">
+      <a class="active" data-view="overview"><span class="ic">◆</span>Overview</a>
+      <a data-view="payments"><span class="ic">$</span>Payments<span class="badge-count" id="pendingBadge" style="display:none;"></span></a>
+      <a data-view="users"><span class="ic">◎</span>Users</a>
+      <a data-view="reports"><span class="ic">⚑</span>Reports<span class="badge-count" id="reportBadge" style="display:none;"></span></a>
+      <a data-view="keys"><span class="ic">⚿</span>API Keys</a>
+      <div class="side-sep"></div>
+      <a id="logoutBtn"><span class="ic">⏻</span>Sign out</a>
+    </div>
+  </div>
+
+  <main>
+    <div class="config-warning" id="configWarning">API_BASE isn't configured yet — edit the API_BASE constant near the top of this file's script to point at your deployed backend.</div>
+
+    <!-- OVERVIEW -->
+    <div class="view active" id="view-overview">
+      <div class="page-top"><div><h1>Overview</h1><p>Platform-wide stats.</p></div></div>
+      <div class="grid-4">
+        <div class="stat-card"><div class="lbl">Users today</div><div class="val" id="statToday">—</div></div>
+        <div class="stat-card"><div class="lbl">Users this month</div><div class="val" id="statMonth">—</div></div>
+        <div class="stat-card"><div class="lbl">Users this year</div><div class="val" id="statYear">—</div></div>
+        <div class="stat-card"><div class="lbl">Total revenue</div><div class="val" id="statRevenue">—</div></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h3>New users — last 14 days</h3></div>
+        <div id="userChartWrap"><div class="empty-note">Loading...</div></div>
+      </div>
+      <div class="grid-2">
+        <div class="panel">
+          <div class="panel-head"><h3>Pending payments</h3></div>
+          <table class="data"><tbody id="pendingPreview"></tbody></table>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h3>Open reports</h3></div>
+          <table class="data"><tbody id="reportsPreview"></tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <!-- PAYMENTS -->
+    <div class="view" id="view-payments">
+      <div class="page-top">
+        <div><h1>Payments</h1><p>Confirm crypto payments manually within 12 hours of receipt.</p></div>
+        <div class="tabs" id="payTabs">
+          <div class="tab active" data-filter="">All</div>
+          <div class="tab" data-filter="pending">Pending</div>
+          <div class="tab" data-filter="completed">Completed</div>
+        </div>
+      </div>
+      <div class="panel">
+        <table class="data">
+          <thead><tr><th>User</th><th>Plan</th><th>Amount</th><th>Method</th><th>Status</th><th>Date</th><th></th></tr></thead>
+          <tbody id="paymentsTable"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- USERS -->
+    <div class="view" id="view-users">
+      <div class="page-top"><div><h1>Users</h1><p>All registered accounts.</p></div><input type="text" placeholder="Search email..." id="userSearch"></div>
+      <div class="panel">
+        <table class="data">
+          <thead><tr><th>Email</th><th>Plan</th><th>Active keys</th><th>Joined</th><th>Status</th><th></th></tr></thead>
+          <tbody id="usersTable"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- REPORTS -->
+    <div class="view" id="view-reports">
+      <div class="page-top"><div><h1>Reports</h1><p>Issues submitted by users.</p></div></div>
+      <div class="panel">
+        <table class="data">
+          <thead><tr><th>User</th><th>Subject</th><th>Status</th><th>Submitted</th><th></th></tr></thead>
+          <tbody id="reportsTable"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- API KEYS -->
+    <div class="view" id="view-keys">
+      <div class="page-top"><div><h1>API Keys</h1><p>All keys across every account — revoke any key immediately if needed.</p></div><input type="text" placeholder="Search by owner or key name..." id="keySearch"></div>
+      <div class="panel">
+        <table class="data">
+          <thead><tr><th>Owner</th><th>Key name</th><th>Created</th><th>Status</th><th></th></tr></thead>
+          <tbody id="adminKeysTable"></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div class="toast" id="toast">Saved</div>
+
+<script>
+  // Point this at your deployed backend (see /home/claude/vortyx-backend, deploy to Render).
+  const API_BASE = "https://your-backend.onrender.com";
+
+  const token = localStorage.getItem('vortyx_token');
+  if (!token) window.location.href = 'login.html';
+
+  function toast(msg, bad=false){
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.classList.toggle('bad', bad);
+    t.classList.add('show');
+    setTimeout(()=>t.classList.remove('show'), 2600);
+  }
+
+  async function api(path, opts={}){
+    const res = await fetch(API_BASE + path, {
+      ...opts,
+      headers: { 'Content-Type':'application/json', 'Authorization': 'Bearer ' + token, ...(opts.headers||{}) }
+    });
+    const data = await res.json().catch(()=>({}));
+    if (res.status === 401) { localStorage.removeItem('vortyx_token'); window.location.href = 'login.html'; throw new Error('Session expired'); }
+    if (res.status === 403 && data.error === 'Admin access required') { window.location.href = 'dashboard.html'; throw new Error('Not an admin'); }
+    if (!res.ok) throw new Error(data.error || 'Request failed');
+    return data;
+  }
+
+  if (API_BASE.includes('your-backend')) document.getElementById('configWarning').style.display = 'block';
+
+  document.querySelectorAll('.side-nav a[data-view]').forEach(a=>{
+    a.addEventListener('click', ()=>{
+      document.querySelectorAll('.side-nav a[data-view]').forEach(x=>x.classList.remove('active'));
+      a.classList.add('active');
+      document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+      document.getElementById('view-'+a.dataset.view).classList.add('active');
+    });
+  });
+  document.getElementById('logoutBtn').addEventListener('click', ()=>{
+    localStorage.removeItem('vortyx_token'); localStorage.removeItem('vortyx_user');
+    window.location.href = 'login.html';
+  });
+
+  // ---------- overview ----------
+  async function loadStats(){
+    try {
+      const s = await api('/api/admin/stats');
+      document.getElementById('statToday').textContent = s.usersToday;
+      document.getElementById('statMonth').textContent = s.usersThisMonth;
+      document.getElementById('statYear').textContent = s.usersThisYear;
+      document.getElementById('statRevenue').textContent = '$' + Number(s.totalRevenue).toFixed(2);
+    } catch(e){ toast(e.message, true); }
+
+    try {
+      const { signups } = await api('/api/admin/stats/signups?days=14');
+      const wrap = document.getElementById('userChartWrap');
+      if (!signups.length){
+        wrap.innerHTML = `<div class="empty-note">No signups in the last 14 days yet.</div>`;
+      } else {
+        const max = Math.max(...signups.map(d=>d.n), 1);
+        wrap.innerHTML = `<div class="chart-simple">${signups.map(d=>`<div class="chart-bar" style="height:${(d.n/max)*100}%" title="${d.n} signups"></div>`).join('')}</div>`;
+      }
+    } catch(e){
+      document.getElementById('userChartWrap').innerHTML = `<div class="error-note">Couldn't load signups: ${e.message}</div>`;
+    }
+  }
+
+  // ---------- payments ----------
+  const PLAN_LABEL = {free:'Free', '3mo':'3-Month', annual:'Annual', perm:'Permanent'};
+
+  async function renderPayments(filter=''){
+    try {
+      const { payments } = await api('/api/admin/payments' + (filter ? `?status=${filter}` : ''));
+      const tbody = document.getElementById('paymentsTable');
+      if (!payments.length){
+        tbody.innerHTML = `<tr><td colspan="7"><div class="empty-note">No payments${filter ? ' with status "'+filter+'"' : ''} yet.</div></td></tr>`;
+      } else {
+        tbody.innerHTML = payments.map(p => `
+          <tr>
+            <td>${p.email}</td><td>${PLAN_LABEL[p.plan]||p.plan}</td><td>$${Number(p.amount_usd).toFixed(2)}</td><td class="mono">${p.method}</td>
+            <td><span class="status-pill ${p.status}">${p.status}</span></td>
+            <td class="mono" style="font-size:11.5px;">${new Date(p.created_at).toISOString().slice(0,16).replace('T',' ')}</td>
+            <td>${p.status==='pending' ? `<div class="btn-row"><button class="btn btn-solid confirm-btn" data-id="${p.id}">Confirm</button><button class="btn btn-bad reject-btn" data-id="${p.id}">Reject</button></div>` : ''}</td>
+          </tr>`).join('');
+      }
+      document.querySelectorAll('.confirm-btn').forEach(b=>{
+        b.addEventListener('click', async ()=>{
+          try { await api(`/api/admin/payments/${b.dataset.id}/confirm`, { method:'POST' }); toast('Payment confirmed'); renderPayments(filter); loadOverviewPreviews(); loadStats(); }
+          catch(e){ toast(e.message, true); }
+        });
+      });
+      document.querySelectorAll('.reject-btn').forEach(b=>{
+        b.addEventListener('click', async ()=>{
+          if(!confirm('Reject this payment?')) return;
+          try { await api(`/api/admin/payments/${b.dataset.id}/reject`, { method:'POST' }); toast('Payment rejected'); renderPayments(filter); loadOverviewPreviews(); }
+          catch(e){ toast(e.message, true); }
+        });
+      });
+    } catch(e){
+      document.getElementById('paymentsTable').innerHTML = `<tr><td colspan="7"><div class="error-note">Couldn't load payments: ${e.message}</div></td></tr>`;
+    }
+  }
+  document.querySelectorAll('#payTabs .tab').forEach(t=>{
+    t.addEventListener('click', ()=>{
+      document.querySelectorAll('#payTabs .tab').forEach(x=>x.classList.remove('active'));
+      t.classList.add('active'); renderPayments(t.dataset.filter);
+    });
+  });
+
+  async function loadOverviewPreviews(){
+    try {
+      const { payments } = await api('/api/admin/payments?status=pending');
+      document.getElementById('pendingPreview').innerHTML = payments.length
+        ? payments.slice(0,5).map(p=>`<tr><td>${p.email}</td><td>$${Number(p.amount_usd).toFixed(2)} · ${p.method}</td></tr>`).join('')
+        : `<tr><td><div class="empty-note">No pending payments.</div></td></tr>`;
+      const badge = document.getElementById('pendingBadge');
+      if (payments.length){ badge.style.display='inline-block'; badge.textContent = payments.length; } else badge.style.display='none';
+    } catch(e){}
+    try {
+      const { reports } = await api('/api/admin/reports');
+      const open = reports.filter(r=>r.status==='open');
+      document.getElementById('reportsPreview').innerHTML = open.length
+        ? open.slice(0,5).map(r=>`<tr><td>${r.email}</td><td>${r.subject}</td></tr>`).join('')
+        : `<tr><td><div class="empty-note">No open reports.</div></td></tr>`;
+      const badge = document.getElementById('reportBadge');
+      if (open.length){ badge.style.display='inline-block'; badge.textContent = open.length; } else badge.style.display='none';
+    } catch(e){}
+  }
+
+  // ---------- users ----------
+  async function renderUsers(q=''){
+    try {
+      const { users } = await api('/api/admin/users' + (q ? `?q=${encodeURIComponent(q)}` : ''));
+      const tbody = document.getElementById('usersTable');
+      tbody.innerHTML = users.length ? users.map(u=>`
+        <tr>
+          <td>${u.email}</td><td>${PLAN_LABEL[u.plan]||u.plan}</td><td class="mono">${u.active_keys}</td>
+          <td class="mono" style="font-size:11.5px;">${new Date(u.created_at).toISOString().slice(0,10)}</td>
+          <td><span class="status-pill ${u.status}">${u.status}</span></td>
+          <td>${u.status==='active' ? `<button class="btn btn-bad suspend-btn" data-id="${u.id}">Suspend</button>` : `<button class="btn unsuspend-btn" data-id="${u.id}">Unsuspend</button>`}</td>
+        </tr>`).join('') : `<tr><td colspan="6"><div class="empty-note">${q ? 'No users match your search.' : 'No users yet.'}</div></td></tr>`;
+      document.querySelectorAll('.suspend-btn').forEach(b=>b.addEventListener('click', async ()=>{
+        if(!confirm('Suspend this user?')) return;
+        try { await api(`/api/admin/users/${b.dataset.id}/suspend`, {method:'POST'}); toast('User suspended'); renderUsers(q); } catch(e){ toast(e.message, true); }
+      }));
+      document.querySelectorAll('.unsuspend-btn').forEach(b=>b.addEventListener('click', async ()=>{
+        try { await api(`/api/admin/users/${b.dataset.id}/unsuspend`, {method:'POST'}); toast('User reactivated'); renderUsers(q); } catch(e){ toast(e.message, true); }
+      }));
+    } catch(e){
+      document.getElementById('usersTable').innerHTML = `<tr><td colspan="6"><div class="error-note">Couldn't load users: ${e.message}</div></td></tr>`;
+    }
+  }
+  document.getElementById('userSearch').addEventListener('input', e=>renderUsers(e.target.value));
+
+  // ---------- reports ----------
+  async function renderReports(){
+    try {
+      const { reports } = await api('/api/admin/reports');
+      const tbody = document.getElementById('reportsTable');
+      tbody.innerHTML = reports.length ? reports.map(r=>`
+        <tr>
+          <td>${r.email}</td><td>${r.subject}</td>
+          <td><span class="status-pill ${r.status}">${r.status}</span></td>
+          <td class="mono" style="font-size:11.5px;">${new Date(r.created_at).toISOString().slice(0,10)}</td>
+          <td>${r.status==='open' ? `<button class="btn resolve-btn" data-id="${r.id}">Mark resolved</button>` : ''}</td>
+        </tr>`).join('') : `<tr><td colspan="5"><div class="empty-note">No reports submitted yet.</div></td></tr>`;
+      document.querySelectorAll('.resolve-btn').forEach(b=>b.addEventListener('click', async ()=>{
+        try { await api(`/api/admin/reports/${b.dataset.id}/resolve`, {method:'POST'}); toast('Marked resolved'); renderReports(); loadOverviewPreviews(); } catch(e){ toast(e.message, true); }
+      }));
+    } catch(e){
+      document.getElementById('reportsTable').innerHTML = `<tr><td colspan="5"><div class="error-note">Couldn't load reports: ${e.message}</div></td></tr>`;
+    }
+  }
+
+  // ---------- admin keys ----------
+  async function renderAdminKeys(q=''){
+    try {
+      const { keys } = await api('/api/admin/keys');
+      const filtered = keys.filter(k => (k.owner_email + k.name).toLowerCase().includes(q.toLowerCase()));
+      const tbody = document.getElementById('adminKeysTable');
+      tbody.innerHTML = filtered.length ? filtered.map(k=>`
+        <tr>
+          <td>${k.owner_email}</td><td class="mono">${k.name}</td><td class="mono" style="font-size:11.5px;">${new Date(k.created_at).toISOString().slice(0,10)}</td>
+          <td><span class="status-pill ${k.revoked?'revoked':'active'}">${k.revoked?'revoked':'active'}</span></td>
+          <td>${!k.revoked ? `<button class="btn btn-bad revoke-admin-btn" data-id="${k.id}">Revoke</button>` : ''}</td>
+        </tr>`).join('') : `<tr><td colspan="5"><div class="empty-note">No API keys yet.</div></td></tr>`;
+      document.querySelectorAll('.revoke-admin-btn').forEach(b=>b.addEventListener('click', async ()=>{
+        if(!confirm('Revoke this key? This takes effect immediately.')) return;
+        try { await api(`/api/admin/keys/${b.dataset.id}/revoke`, {method:'POST'}); toast('Key revoked'); renderAdminKeys(q); } catch(e){ toast(e.message, true); }
+      }));
+    } catch(e){
+      document.getElementById('adminKeysTable').innerHTML = `<tr><td colspan="5"><div class="error-note">Couldn't load keys: ${e.message}</div></td></tr>`;
+    }
+  }
+  document.getElementById('keySearch').addEventListener('input', e=>renderAdminKeys(e.target.value));
+
+  // ---------- boot ----------
+  loadStats();
+  renderPayments();
+  renderUsers();
+  renderReports();
+  renderAdminKeys();
+  loadOverviewPreviews();
+</script>
+
+</body>
+</html>
