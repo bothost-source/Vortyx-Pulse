@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sign in — Vortyx Pulse</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+  :root{--bg:#08080a; --ink:#f2f2f4; --ink-dim:#a7a7ae; --ink-faint:#6c6c74; --line:rgba(255,255,255,0.09); --line-bright:rgba(255,255,255,0.18); --glass:rgba(255,255,255,0.045);}
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:var(--bg); color:var(--ink); font-family:'Inter',sans-serif; min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px;}
+  .card{width:100%; max-width:380px; border:1px solid var(--line); border-radius:16px; padding:40px 32px; background:var(--glass); text-align:center;}
+  .brand{display:flex; align-items:center; justify-content:center; gap:10px; margin-bottom:28px;}
+  .brand-mark{width:26px; height:26px; border-radius:7px; background:linear-gradient(135deg,#fff,#7a7a82); position:relative;}
+  .brand-mark::after{content:''; position:absolute; top:8.5px; left:8.5px; width:9px; height:9px; border-radius:50%; background:#08080a;}
+  .brand span{font-weight:600; font-size:16px;}
+  h1{font-family:'Space Grotesk',sans-serif; font-size:1.5rem; font-weight:600; letter-spacing:-0.02em; margin-bottom:8px;}
+  p{color:var(--ink-dim); font-size:13.5px; margin-bottom:30px; line-height:1.6;}
+  #googleBtnContainer{display:flex; justify-content:center; margin-bottom:16px;}
+  .fine{font-size:11.5px; color:var(--ink-faint); margin-top:20px; line-height:1.6;}
+  .error{display:none; background:rgba(224,163,163,0.1); border:1px solid rgba(224,163,163,0.3); color:#e0a3a3; font-size:12.5px; padding:10px 14px; border-radius:8px; margin-bottom:16px;}
+</style>
+</head>
+<body>
+
+<div class="card">
+  <div class="brand"><div class="brand-mark"></div><span>Vortyx Pulse</span></div>
+  <h1>Sign in to continue</h1>
+  <p>One click with Google — no password, no verification code.</p>
+  <div class="error" id="errorBox"></div>
+  <div id="googleBtnContainer"></div>
+  <div class="fine">By continuing you agree to Vortyx Pulse's Terms and Privacy Policy.</div>
+</div>
+
+<script>
+  // Set this to your real Google OAuth Client ID (Web application type).
+  const GOOGLE_CLIENT_ID = "253715273543-ettj51bujhigopbkkre4fcj8lsqo03v1.apps.googleusercontent.com";
+  // Set this to wherever your backend is deployed on Render.
+  const API_BASE = "https://your-backend.onrender.com";
+
+  function showError(msg){
+    const box = document.getElementById('errorBox');
+    box.textContent = msg;
+    box.style.display = 'block';
+  }
+
+  async function handleCredentialResponse(response){
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/google`, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ credential: response.credential })
+      });
+      const data = await res.json();
+      if(!res.ok){ showError(data.error || 'Sign-in failed'); return; }
+      localStorage.setItem('vortyx_token', data.token);
+      localStorage.setItem('vortyx_user', JSON.stringify(data.user));
+      window.location.href = data.user.is_admin ? 'admin.html' : 'dashboard.html';
+    } catch(err){
+      showError('Could not reach the server. Please try again.');
+    }
+  }
+
+  window.onload = function(){
+    if(GOOGLE_CLIENT_ID.startsWith('YOUR_')){
+      showError('Google Client ID not configured yet — set GOOGLE_CLIENT_ID in this file.');
+      return;
+    }
+    google.accounts.id.initialize({
+      client_id: GOOGLE_CLIENT_ID,
+      callback: handleCredentialResponse
+    });
+    google.accounts.id.renderButton(
+      document.getElementById('googleBtnContainer'),
+      { theme: 'filled_black', size: 'large', shape: 'pill', width: 280 }
+    );
+  };
+</script>
+
+</body>
+</html>
