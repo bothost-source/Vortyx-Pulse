@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vortyx Pulse — One API. Every modality.</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #08080a;
+    --bg-alt: #0d0d10;
+    --ink: #f2f2f4;
+    --ink-dim: #a7a7ae;
+    --ink-faint: #6c6c74;
+    --line: rgba(255,255,255,0.09);
+    --line-bright: rgba(255,255,255,0.18);
+    --glass: rgba(255,255,255,0.045);
+    --glass-hover: rgba(255,255,255,0.075);
+    --pulse: #f2f2f4;
+    --radius: 14px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'Inter',sans-serif;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:0.001ms !important; animation-iteration-count:1 !important; transition-duration:0.001ms !important;}
+  }
+  a{color:inherit;text-decoration:none;}
+  .mono{font-family:'JetBrains Mono',monospace;}
+  .display{font-family:'Space Grotesk',sans-serif;}
+
+  /* background texture */
+  .grain{
+    position:fixed; inset:0; pointer-events:none; z-index:1; opacity:0.4;
+    background-image:radial-gradient(circle at 20% 20%, rgba(255,255,255,0.025) 0, transparent 45%),
+                      radial-gradient(circle at 80% 60%, rgba(255,255,255,0.02) 0, transparent 45%);
+  }
+
+  /* NAV */
+  header{
+    position:fixed; top:0; left:0; right:0; z-index:100;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:20px 5vw;
+    backdrop-filter:blur(16px) saturate(140%);
+    -webkit-backdrop-filter:blur(16px) saturate(140%);
+    background:rgba(8,8,10,0.55);
+    border-bottom:1px solid var(--line);
+  }
+  .brand{display:flex; align-items:center; gap:10px; font-weight:600; font-size:17px; letter-spacing:-0.01em;}
+  .brand-mark{
+    width:26px; height:26px; border-radius:7px;
+    background:linear-gradient(135deg, #fff, #7a7a82);
+    display:flex; align-items:center; justify-content:center;
+    position:relative;
+  }
+  .brand-mark::after{
+    content:''; position:absolute; width:9px; height:9px; border-radius:50%;
+    background:#08080a;
+  }
+  nav ul{display:flex; gap:36px; list-style:none;}
+  nav a{font-size:14px; color:var(--ink-dim); transition:color .2s;}
+  nav a:hover{color:var(--ink);}
+  .nav-cta{display:flex; gap:12px; align-items:center;}
+  .btn{
+    padding:9px 18px; border-radius:100px; font-size:14px; font-weight:500;
+    border:1px solid var(--line-bright); transition:all .2s ease; white-space:nowrap;
+    cursor:pointer; display:inline-block;
+  }
+  .btn-ghost{color:var(--ink-dim); border-color:transparent;}
+  .btn-ghost:hover{color:var(--ink);}
+  .btn-solid{background:var(--ink); color:#0a0a0c; border-color:var(--ink);}
+  .btn-solid:hover{background:#d8d8dc;}
+  .mobile-toggle{display:none;}
+
+  /* HERO */
+  .hero{
+    position:relative; z-index:2;
+    min-height:100vh;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    text-align:center; padding:140px 6vw 80px;
+  }
+  .eyebrow{
+    display:inline-flex; align-items:center; gap:8px;
+    font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:0.06em;
+    color:var(--ink-dim); padding:6px 14px; border:1px solid var(--line); border-radius:100px;
+    background:var(--glass); margin-bottom:28px;
+  }
+  .eyebrow .dot{width:6px;height:6px;border-radius:50%;background:#fff; animation:blink 2s ease-in-out infinite;}
+  @keyframes blink{0%,100%{opacity:1;}50%{opacity:0.25;}}
+
+  .hero h1{
+    font-family:'Space Grotesk',sans-serif; font-weight:600;
+    font-size:clamp(2.6rem, 6.5vw, 5.4rem); line-height:1.04; letter-spacing:-0.03em;
+    max-width:15ch;
+  }
+  .hero h1 .fade{
+    background:linear-gradient(180deg, var(--ink) 0%, var(--ink-faint) 100%);
+    -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;
+  }
+  .hero p.sub{
+    margin-top:22px; font-size:clamp(1rem,2vw,1.2rem); color:var(--ink-dim);
+    max-width:42ch; line-height:1.6;
+  }
+  .hero-cta{display:flex; gap:14px; margin-top:38px; flex-wrap:wrap; justify-content:center;}
+  .btn-lg{padding:13px 26px; font-size:15px; border-radius:100px;}
+
+  /* signature: pulse waveform */
+  .pulse-wrap{
+    width:min(880px, 88vw); height:200px; margin-top:56px; position:relative;
+  }
+  .pulse-wrap canvas{width:100%; height:100%; display:block;}
+  .pulse-labels{
+    display:flex; justify-content:space-between; margin-top:6px;
+    font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--ink-faint);
+  }
+
+  /* MODALITY STRIP */
+  .strip{
+    position:relative; z-index:2;
+    border-top:1px solid var(--line); border-bottom:1px solid var(--line);
+    padding:22px 6vw; display:flex; gap:48px; overflow-x:auto;
+    justify-content:center; flex-wrap:wrap;
+    background:var(--bg-alt);
+  }
+  .strip span{
+    font-family:'JetBrains Mono',monospace; font-size:12.5px; color:var(--ink-faint);
+    letter-spacing:0.04em; white-space:nowrap;
+  }
+  .strip span b{color:var(--ink-dim); font-weight:500;}
+
+  section{position:relative; z-index:2;}
+  .section-pad{padding:120px 6vw;}
+  .kicker{
+    font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--ink-faint);
+    letter-spacing:0.08em; text-transform:uppercase; margin-bottom:14px;
+  }
+  .section-head{max-width:640px; margin-bottom:64px;}
+  .section-head h2{
+    font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:clamp(1.9rem,3.4vw,2.7rem);
+    letter-spacing:-0.02em; line-height:1.12;
+  }
+  .section-head p{color:var(--ink-dim); margin-top:16px; font-size:1.05rem; line-height:1.6; max-width:52ch;}
+
+  /* MODALITY CARDS */
+  .grid-3{display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--line); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden;}
+  .card{
+    background:var(--bg); padding:36px 30px; transition:background .25s ease;
+  }
+  .card:hover{background:var(--glass-hover);}
+  .card .idx{font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--ink-faint); margin-bottom:22px; display:block;}
+  .card h3{font-family:'Space Grotesk',sans-serif; font-size:1.3rem; font-weight:600; margin-bottom:12px; letter-spacing:-0.01em;}
+  .card p{color:var(--ink-dim); font-size:0.95rem; line-height:1.6;}
+
+  /* CODE PANEL */
+  .code-panel{
+    display:grid; grid-template-columns:0.85fr 1fr; gap:56px; align-items:center;
+  }
+  .code-tabs{display:flex; gap:6px; margin-bottom:18px;}
+  .code-tab{
+    font-family:'JetBrains Mono',monospace; font-size:12.5px; padding:7px 14px; border-radius:8px;
+    color:var(--ink-faint); cursor:pointer; border:1px solid transparent; transition:all .2s;
+  }
+  .code-tab.active{color:var(--ink); background:var(--glass); border-color:var(--line);}
+  .code-block{
+    background:rgba(255,255,255,0.03); border:1px solid var(--line); border-radius:var(--radius);
+    padding:26px 24px; font-family:'JetBrains Mono',monospace; font-size:13px; line-height:1.75;
+    overflow-x:auto; backdrop-filter:blur(10px);
+  }
+  .code-block .c1{color:#7c7c85;}
+  .code-block .c2{color:#e9c674;}
+  .code-block .c3{color:#8fc9e0;}
+  .code-block .c4{color:#f2f2f4;}
+  .feat-list{display:flex; flex-direction:column; gap:26px;}
+  .feat-item{display:flex; gap:16px;}
+  .feat-item .chk{
+    width:22px;height:22px;border-radius:6px;border:1px solid var(--line-bright);
+    display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px;
+    background:var(--glass);
+  }
+  .feat-item h4{font-size:1rem;font-weight:600;margin-bottom:5px;}
+  .feat-item p{color:var(--ink-dim);font-size:0.92rem;line-height:1.55;}
+
+  /* METRICS */
+  .metrics{
+    display:grid; grid-template-columns:repeat(4,1fr); border:1px solid var(--line); border-radius:var(--radius);
+    overflow:hidden;
+  }
+  .metric{padding:36px 28px; border-right:1px solid var(--line);}
+  .metric:last-child{border-right:none;}
+  .metric .num{font-family:'Space Grotesk',sans-serif; font-size:2.4rem; font-weight:600; letter-spacing:-0.02em;}
+  .metric .lbl{color:var(--ink-faint); font-size:0.85rem; margin-top:6px; font-family:'JetBrains Mono',monospace;}
+
+  /* PRICING PREVIEW */
+  .grid-4{display:grid; grid-template-columns:repeat(4,1fr); gap:18px;}
+  .price-card{
+    border:1px solid var(--line); border-radius:var(--radius); padding:30px 26px;
+    background:var(--glass); display:flex; flex-direction:column; transition:border-color .2s, transform .2s;
+  }
+  .price-card:hover{border-color:var(--line-bright); transform:translateY(-3px);}
+  .price-card.featured{border-color:var(--line-bright); background:var(--glass-hover); position:relative;}
+  .price-card.featured::before{
+    content:'MOST POPULAR'; position:absolute; top:-11px; left:26px; font-family:'JetBrains Mono',monospace;
+    font-size:10px; letter-spacing:0.06em; background:var(--ink); color:#0a0a0c; padding:4px 10px; border-radius:100px;
+  }
+  .price-card h4{font-family:'Space Grotesk',sans-serif; font-size:1.05rem; font-weight:600; margin-bottom:6px;}
+  .price-card .price{font-family:'Space Grotesk',sans-serif; font-size:2.1rem; font-weight:600; margin:14px 0 4px;}
+  .price-card .price span{font-size:0.85rem; color:var(--ink-faint); font-weight:400; font-family:'Inter';}
+  .price-card .desc{color:var(--ink-faint); font-size:0.83rem; margin-bottom:22px; min-height:32px;}
+  .price-card ul{list-style:none; display:flex; flex-direction:column; gap:10px; margin-bottom:26px; flex-grow:1;}
+  .price-card li{font-size:0.86rem; color:var(--ink-dim); display:flex; gap:9px; align-items:flex-start;}
+  .price-card li::before{content:'—'; color:var(--ink-faint); flex-shrink:0;}
+  .price-card .btn{text-align:center; width:100%;}
+
+  /* CTA BAND */
+  .cta-band{
+    text-align:center; border-top:1px solid var(--line); border-bottom:1px solid var(--line);
+    padding:110px 6vw; background:var(--bg-alt);
+  }
+  .cta-band h2{font-family:'Space Grotesk',sans-serif; font-size:clamp(2rem,4vw,3rem); font-weight:600; letter-spacing:-0.02em; max-width:16ch; margin:0 auto 18px;}
+  .cta-band p{color:var(--ink-dim); margin-bottom:36px;}
+
+  footer{padding:64px 6vw 40px;}
+  .foot-grid{display:grid; grid-template-columns:1.4fr repeat(4,1fr); gap:40px; margin-bottom:60px;}
+  .foot-brand p{color:var(--ink-faint); font-size:0.88rem; margin-top:14px; max-width:32ch; line-height:1.6;}
+  .foot-col h5{font-family:'JetBrains Mono',monospace; font-size:11.5px; letter-spacing:0.06em; color:var(--ink-faint); margin-bottom:16px; text-transform:uppercase;}
+  .foot-col a{display:block; font-size:0.88rem; color:var(--ink-dim); margin-bottom:12px; transition:color .2s;}
+  .foot-col a:hover{color:var(--ink);}
+  .foot-bottom{
+    display:flex; justify-content:space-between; align-items:center; padding-top:28px;
+    border-top:1px solid var(--line); font-size:0.8rem; color:var(--ink-faint); flex-wrap:wrap; gap:12px;
+  }
+
+  [data-reveal]{opacity:0; transform:translateY(18px); transition:opacity .7s ease, transform .7s ease;}
+  [data-reveal].in{opacity:1; transform:translateY(0);}
+
+  @media(max-width:980px){
+    nav, .nav-cta{display:none;}
+    .grid-3{grid-template-columns:1fr;}
+    .code-panel{grid-template-columns:1fr; gap:32px;}
+    .metrics{grid-template-columns:repeat(2,1fr);}
+    .metric{border-bottom:1px solid var(--line);}
+    .grid-4{grid-template-columns:repeat(2,1fr);}
+    .foot-grid{grid-template-columns:repeat(2,1fr);}
+  }
+  @media(max-width:560px){
+    .grid-4{grid-template-columns:1fr;}
+    .metrics{grid-template-columns:1fr;}
+    .metric{border-right:none;}
+    .foot-grid{grid-template-columns:1fr;}
+    .section-pad{padding:80px 6vw;}
+  }
+</style>
+</head>
+<body>
+
+<div class="grain"></div>
+
+<header>
+  <div class="brand">
+    <div class="brand-mark"></div>
+    <span>Vortyx Pulse</span>
+  </div>
+  <nav>
+    <ul>
+      <li><a href="#platform">Platform</a></li>
+      <li><a href="pricing.html">Pricing</a></li>
+      <li><a href="docs.html">Docs</a></li>
+      <li><a href="dashboard.html">Dashboard</a></li>
+    </ul>
+  </nav>
+  <div class="nav-cta">
+    <a href="login.html" class="btn btn-ghost">Sign in</a>
+    <a href="login.html" class="btn btn-solid">Get API key</a>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="eyebrow"><span class="dot"></span> ONE MODEL · CHAT · VOICE · VIDEO</div>
+  <h1>One signal in.<br><span class="fade">Every modality out.</span></h1>
+  <p class="sub">Vortyx Pulse is a single API that reasons in text, listens in audio, and sees in video — no separate endpoints, no separate bills.</p>
+  <div class="hero-cta">
+    <a href="login.html" class="btn btn-solid btn-lg">Start building — free</a>
+    <a href="#pricing" class="btn btn-ghost btn-lg" style="border:1px solid var(--line-bright);">View pricing</a>
+  </div>
+
+  <div class="pulse-wrap">
+    <canvas id="nodeCanvas"></canvas>
+    <div class="pulse-labels">
+      <span>nodes_active</span>
+      <span id="pulseStatus">syncing · 12ms</span>
+      <span>vortyx-1</span>
+    </div>
+  </div>
+</section>
+
+<div class="strip">
+  <span><b>Text</b> · reasoning &amp; chat</span>
+  <span><b>Audio</b> · speech in / speech out</span>
+  <span><b>Video</b> · frame-level understanding</span>
+  <span><b>99.95%</b> uptime SLA</span>
+  <span><b>Sub-30ms</b> p50 first token</span>
+</div>
+
+<section class="section-pad" id="platform" data-reveal>
+  <div class="kicker">Platform</div>
+  <div class="section-head">
+    <h2>Three modalities. One model, one key, one bill.</h2>
+    <p>Most providers make you stitch together separate APIs for text, speech, and vision. Vortyx Pulse handles all three natively, so your product ships faster and your infra stays simple.</p>
+  </div>
+  <div class="grid-3">
+    <div class="card">
+      <span class="idx mono">01 / TEXT</span>
+      <h3>Chat &amp; reasoning</h3>
+      <p>Long-context conversation, function calling, and structured output from a single completions endpoint.</p>
+    </div>
+    <div class="card">
+      <span class="idx mono">02 / AUDIO</span>
+      <h3>Voice in, voice out</h3>
+      <p>Stream speech directly into the model and get natural spoken responses back — no separate transcription step.</p>
+    </div>
+    <div class="card">
+      <span class="idx mono">03 / VIDEO</span>
+      <h3>Frame-level vision</h3>
+      <p>Send video and ask what happened, when, and why — the model reasons across frames, not just stills.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section-pad" data-reveal>
+  <div class="kicker">Integration</div>
+  <div class="section-head">
+    <h2>Live in one request.</h2>
+    <p>The same key, the same base URL, across every modality. Swap the input type — nothing else changes.</p>
+  </div>
+  <div class="code-panel">
+    <div class="feat-list">
+      <div class="feat-item">
+        <div class="chk">→</div>
+        <div><h4>Drop-in REST &amp; SDKs</h4><p>One base endpoint for text, audio, and video calls — use curl or an official SDK.</p></div>
+      </div>
+      <div class="feat-item">
+        <div class="chk">→</div>
+        <div><h4>Streaming by default</h4><p>Token and audio streaming built into every response, so interfaces feel instant.</p></div>
+      </div>
+      <div class="feat-item">
+        <div class="chk">→</div>
+        <div><h4>Scoped API keys</h4><p>Create up to 5 keys on the free plan, or unlimited keys on any paid plan — revoke any key instantly.</p></div>
+      </div>
+    </div>
+    <div>
+      <div class="code-tabs">
+        <div class="code-tab active" data-tab="chat">chat.py</div>
+        <div class="code-tab" data-tab="curl">curl</div>
+        <div class="code-tab" data-tab="audio">audio.py</div>
+      </div>
+      <div class="code-block" id="codeBlock"><span class="c1">1</span>  <span class="c3">from</span> vortyx <span class="c3">import</span> Client
+<span class="c1">2</span>
+<span class="c1">3</span>  client = Client(api_key=<span class="c2">"vp_live_••••••••"</span>)
+<span class="c1">4</span>
+<span class="c1">5</span>  response = client.chat.create(
+<span class="c1">6</span>      model=<span class="c2">"vortyx-1"</span>,
+<span class="c1">7</span>      input=<span class="c2">"Summarize this call in 3 bullets"</span>,
+<span class="c1">8</span>      modality=<span class="c2">"audio"</span>,
+<span class="c1">9</span>      stream=<span class="c4">True</span>
+<span class="c1">10</span>  )
+<span class="c1">11</span>
+<span class="c1">12</span>  <span class="c3">for</span> chunk <span class="c3">in</span> response:
+<span class="c1">13</span>      print(chunk.delta, end=<span class="c2">""</span>)</div>
+    </div>
+  </div>
+</section>
+
+<section class="section-pad" data-reveal>
+  <div class="metrics">
+    <div class="metric"><div class="num">1</div><div class="lbl mono">UNIFIED MODEL</div></div>
+    <div class="metric"><div class="num">3</div><div class="lbl mono">NATIVE MODALITIES</div></div>
+    <div class="metric"><div class="num">99.95%</div><div class="lbl mono">UPTIME SLA</div></div>
+    <div class="metric"><div class="num">&lt;30ms</div><div class="lbl mono">P50 FIRST TOKEN</div></div>
+  </div>
+</section>
+
+<section class="section-pad" id="pricing" data-reveal>
+  <div class="kicker">Pricing</div>
+  <div class="section-head">
+    <h2>Start free. Scale when you're ready.</h2>
+    <p>Every plan uses the same model and the same endpoints — you're only choosing how long access lasts and how many keys you need.</p>
+  </div>
+  <div class="grid-4">
+    <div class="price-card">
+      <h4>Free</h4>
+      <div class="desc">Try Vortyx Pulse, no card required</div>
+      <div class="price">$0</div>
+      <ul>
+        <li>Expires 30 days after signup</li>
+        <li>Up to 5 API keys</li>
+        <li>Text, audio &amp; video access</li>
+        <li>Community support</li>
+      </ul>
+      <a href="#" class="btn btn-ghost" style="border:1px solid var(--line-bright);">Get started</a>
+    </div>
+    <div class="price-card featured">
+      <h4>Premium · 3 Month</h4>
+      <div class="desc">Short-term unlimited access</div>
+      <div class="price">$5 <span>/ 3 mo</span></div>
+      <ul>
+        <li>Unlimited API keys</li>
+        <li>No rate throttling</li>
+        <li>Priority queueing</li>
+        <li>Email support</li>
+      </ul>
+      <a href="#" class="btn btn-solid">Upgrade</a>
+    </div>
+    <div class="price-card">
+      <h4>Premium · Annual</h4>
+      <div class="desc">Best value for ongoing projects</div>
+      <div class="price">$10 <span>/ yr</span></div>
+      <ul>
+        <li>Unlimited API keys</li>
+        <li>No rate throttling</li>
+        <li>Priority queueing</li>
+        <li>Email support</li>
+      </ul>
+      <a href="#" class="btn btn-ghost" style="border:1px solid var(--line-bright);">Upgrade</a>
+    </div>
+    <div class="price-card">
+      <h4>Permanent</h4>
+      <div class="desc">One-time payment, lifetime access</div>
+      <div class="price">$25 <span>once</span></div>
+      <ul>
+        <li>Unlimited API keys, forever</li>
+        <li>No renewal, ever</li>
+        <li>Priority queueing</li>
+        <li>Priority support</li>
+      </ul>
+      <a href="#" class="btn btn-ghost" style="border:1px solid var(--line-bright);">Upgrade</a>
+    </div>
+  </div>
+</section>
+
+<section class="cta-band" data-reveal>
+  <h2>Send your first request in under a minute.</h2>
+  <p>Free tier includes 5 API keys and full access to every modality.</p>
+  <a href="login.html" class="btn btn-solid btn-lg">Create free account</a>
+</section>
+
+<footer>
+  <div class="foot-grid">
+    <div class="foot-brand">
+      <div class="brand">
+        <div class="brand-mark"></div>
+        <span>Vortyx Pulse</span>
+      </div>
+      <p>A single API for text, audio, and video reasoning — built for teams who want one integration, not three.</p>
+    </div>
+    <div class="foot-col">
+      <h5>Product</h5>
+      <a href="#platform">Platform</a>
+      <a href="#pricing">Pricing</a>
+      <a href="#">Docs</a>
+      <a href="#">Status</a>
+    </div>
+    <div class="foot-col">
+      <h5>Developers</h5>
+      <a href="#">Quickstart</a>
+      <a href="#">API reference</a>
+      <a href="#">SDKs</a>
+      <a href="#">Changelog</a>
+    </div>
+    <div class="foot-col">
+      <h5>Company</h5>
+      <a href="#">About</a>
+      <a href="#">Contact</a>
+      <a href="#">Terms</a>
+      <a href="#">Privacy</a>
+    </div>
+    <div class="foot-col">
+      <h5>Account</h5>
+      <a href="login.html">Sign in</a>
+      <a href="#">Dashboard</a>
+      <a href="#">Billing</a>
+    </div>
+  </div>
+  <div class="foot-bottom">
+    <span>© 2026 Vortyx Pulse. All rights reserved.</span>
+    <span class="mono">vortyx-1 · operational</span>
+  </div>
+</footer>
+
+<script>
+  // code tab switching
+  const codeSamples = {
+    chat: `<span class="c1">1</span>  <span class="c3">from</span> vortyx <span class="c3">import</span> Client
+<span class="c1">2</span>
+<span class="c1">3</span>  client = Client(api_key=<span class="c2">"vp_live_••••••••"</span>)
+<span class="c1">4</span>
+<span class="c1">5</span>  response = client.chat.create(
+<span class="c1">6</span>      model=<span class="c2">"vortyx-1"</span>,
+<span class="c1">7</span>      input=<span class="c2">"Summarize this call in 3 bullets"</span>,
+<span class="c1">8</span>      modality=<span class="c2">"audio"</span>,
+<span class="c1">9</span>      stream=<span class="c4">True</span>
+<span class="c1">10</span>  )
+<span class="c1">11</span>
+<span class="c1">12</span>  <span class="c3">for</span> chunk <span class="c3">in</span> response:
+<span class="c1">13</span>      print(chunk.delta, end=<span class="c2">""</span>)`,
+    curl: `<span class="c1">1</span>  curl https://api.vortyxpulse.com/v1/chat \\
+<span class="c1">2</span>    -H <span class="c2">"Authorization: Bearer vp_live_••••••••"</span> \\
+<span class="c1">3</span>    -H <span class="c2">"Content-Type: application/json"</span> \\
+<span class="c1">4</span>    -d <span class="c2">'{</span>
+<span class="c1">5</span>  <span class="c2">      "model": "vortyx-1",</span>
+<span class="c1">6</span>  <span class="c2">      "input": "Summarize this call in 3 bullets",</span>
+<span class="c1">7</span>  <span class="c2">      "modality": "audio",</span>
+<span class="c1">8</span>  <span class="c2">      "stream": true</span>
+<span class="c1">9</span>  <span class="c2">    }'</span>`,
+    audio: `<span class="c1">1</span>  <span class="c3">from</span> vortyx <span class="c3">import</span> Client
+<span class="c1">2</span>
+<span class="c1">3</span>  client = Client(api_key=<span class="c2">"vp_live_••••••••"</span>)
+<span class="c1">4</span>
+<span class="c1">5</span>  <span class="c3">with</span> open(<span class="c2">"call.wav"</span>, <span class="c2">"rb"</span>) <span class="c3">as</span> f:
+<span class="c1">6</span>      response = client.audio.create(
+<span class="c1">7</span>          model=<span class="c2">"vortyx-1"</span>,
+<span class="c1">8</span>          audio=f,
+<span class="c1">9</span>          voice=<span class="c2">"natural"</span>,
+<span class="c1">10</span>          stream=<span class="c4">True</span>
+<span class="c1">11</span>      )
+<span class="c1">12</span>
+<span class="c1">13</span>  <span class="c3">for</span> chunk <span class="c3">in</span> response.audio:
+<span class="c1">14</span>      play(chunk)`
+  };
+  document.querySelectorAll('.code-tab').forEach(tab=>{
+    tab.addEventListener('click', ()=>{
+      document.querySelectorAll('.code-tab').forEach(t=>t.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById('codeBlock').innerHTML = codeSamples[tab.dataset.tab];
+    });
+  });
+
+  // reveal on scroll
+  const revealEls = document.querySelectorAll('[data-reveal]');
+  const io = new IntersectionObserver((entries)=>{
+    entries.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); } });
+  }, {threshold:0.12});
+  revealEls.forEach(el=>io.observe(el));
+
+  // animated orbiting node network (signature element)
+  const pulseStatus = document.getElementById('pulseStatus');
+  const canvas = document.getElementById('nodeCanvas');
+  const ctx = canvas.getContext('2d');
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function resizeCanvas(){
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.scale(dpr, dpr);
+    return {w: rect.width, h: rect.height};
+  }
+  let dims = resizeCanvas();
+  window.addEventListener('resize', ()=>{ dims = resizeCanvas(); });
+
+  const NODE_COUNT = 26;
+  const nodes = Array.from({length: NODE_COUNT}, ()=>({
+    rx: 0.28 + Math.random()*0.42,
+    ry: 0.22 + Math.random()*0.34,
+    a: Math.random()*Math.PI*2,
+    speed: 0.0009 + Math.random()*0.0016,
+    dir: Math.random()>0.5?1:-1,
+    size: 1.3 + Math.random()*2.1,
+    pulse: Math.random()*Math.PI*2
+  }));
+
+  function drawFrame(){
+    const {w,h} = dims;
+    ctx.clearRect(0,0,w,h);
+    const cx = w/2, cy = h/2;
+
+    const pts = nodes.map(n=>{
+      n.a += n.speed * n.dir;
+      n.pulse += 0.02;
+      return {
+        x: cx + Math.cos(n.a) * (w*n.rx),
+        y: cy + Math.sin(n.a) * (h*n.ry),
+        size: n.size + Math.sin(n.pulse)*0.6
+      };
+    });
+
+    // connections
+    for(let i=0;i<pts.length;i++){
+      for(let j=i+1;j<pts.length;j++){
+        const dx = pts[i].x-pts[j].x, dy = pts[i].y-pts[j].y;
+        const dist = Math.sqrt(dx*dx+dy*dy);
+        if(dist < 95){
+          ctx.strokeStyle = `rgba(255,255,255,${0.14*(1-dist/95)})`;
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(pts[i].x, pts[i].y);
+          ctx.lineTo(pts[j].x, pts[j].y);
+          ctx.stroke();
+        }
+      }
+    }
+    // center hub
+    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+    ctx.beginPath(); ctx.arc(cx,cy,3.5,0,Math.PI*2); ctx.fill();
+    pts.forEach(p=>{
+      ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+      ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(p.x,p.y); ctx.stroke();
+    });
+
+    // nodes
+    ctx.fillStyle = '#f2f2f4';
+    pts.forEach(p=>{
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, Math.max(p.size,0.6), 0, Math.PI*2);
+      ctx.fill();
+    });
+
+    if(!reduceMotion) requestAnimationFrame(drawFrame);
+  }
+  drawFrame();
+
+  const latencies = [9,11,14,10,22,13,17];
+  setInterval(()=>{
+    const l = latencies[Math.floor(Math.random()*latencies.length)];
+    pulseStatus.textContent = `syncing · ${l}ms`;
+  }, 1400);
+</script>
+
+</body>
+</html>
