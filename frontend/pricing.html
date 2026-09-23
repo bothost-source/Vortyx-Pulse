@@ -108,8 +108,8 @@
     <li><a href="dashboard.html">Dashboard</a></li>
   </ul></nav>
   <div class="nav-cta">
-    <a href="#" class="btn btn-ghost">Sign in</a>
-    <a href="#" class="btn btn-solid">Get API key</a>
+    <a href="login.html" class="btn btn-ghost">Sign in</a>
+    <a href="login.html" class="btn btn-solid">Get API key</a>
   </div>
 </header>
 
@@ -128,7 +128,7 @@
       <ul>
         <li>Expires 30 days after signup</li>
         <li>Up to 5 API keys</li>
-        <li>Text, audio &amp; video access</li>
+        <li>Text access</li>
         <li>Community support</li>
       </ul>
       <a href="login.html" class="btn btn-ghost" style="border:1px solid var(--line-bright);">Get started</a>
@@ -182,8 +182,9 @@
       <tr><th>Feature</th><th>Free</th><th>3-Month</th><th>Annual</th><th>Permanent</th></tr>
       <tr><td>Access length</td><td>30 days</td><td>3 months</td><td>12 months</td><td>Lifetime</td></tr>
       <tr><td>API keys</td><td>Up to 5</td><td>Unlimited</td><td>Unlimited</td><td>Unlimited</td></tr>
-      <tr><td>Text / audio / video</td><td class="check">✓</td><td class="check">✓</td><td class="check">✓</td><td class="check">✓</td></tr>
-      <tr><td>Rate throttling</td><td>Standard</td><td>None</td><td>None</td><td>None</td></tr>
+      <tr><td>Text chat access</td><td class="check">✓</td><td class="check">✓</td><td class="check">✓</td><td class="check">✓</td></tr>
+      <tr><td>Requests / min</td><td>8</td><td>60</td><td>60</td><td>120</td></tr>
+      <tr><td>Monthly tokens</td><td>50,000</td><td>2,000,000</td><td>2,000,000</td><td>Unlimited</td></tr>
       <tr><td>Queue priority</td><td class="dash">—</td><td class="check">✓</td><td class="check">✓</td><td class="check">✓</td></tr>
       <tr><td>Support</td><td>Community</td><td>Email</td><td>Email</td><td>Priority</td></tr>
       <tr><td>Renewal</td><td class="dash">Expires</td><td>Every 3 mo</td><td>Every 12 mo</td><td class="dash">Never</td></tr>
@@ -228,7 +229,11 @@
     </div>
     <div class="faq-item">
       <div class="faq-q">Do all plans use the same model? <span class="icon">+</span></div>
-      <div class="faq-a"><p>Yes. Every plan gives you the same vortyx-1 model across text, audio, and video — plans only affect duration, key limits, and support priority.</p></div>
+      <div class="faq-a"><p>Yes. Every plan gives you the same vortyx-1 model for text chat — plans only affect duration, key limits, rate limits, monthly token quota, and support priority. Audio and video are not available yet.</p></div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">What happens when I use up my monthly tokens? <span class="icon">+</span></div>
+      <div class="faq-a"><p>Once you hit your plan's monthly token limit, further requests are rejected with a clear error — on the website and via the API — until your quota resets 30 days after it was last reset, or until you upgrade to a plan with a higher limit.</p></div>
     </div>
     <div class="faq-item">
       <div class="faq-q">Can I revoke or rotate an API key? <span class="icon">+</span></div>

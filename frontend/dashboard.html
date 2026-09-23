@@ -158,7 +158,7 @@
       <div class="page-top"><div><h1>Overview</h1><p>Welcome back — here's what's happening with your account.</p></div></div>
       <div class="grid-3">
         <div class="stat-card"><div class="lbl">Active API keys</div><div class="val" id="ovKeyCount">—</div><div class="delta" id="ovKeyDelta"></div></div>
-        <div class="stat-card"><div class="lbl">Requests this month</div><div class="val" id="ovRequests">—</div><div class="delta">Text + audio + video combined</div></div>
+        <div class="stat-card"><div class="lbl">Requests this month</div><div class="val" id="ovRequests">—</div><div class="delta">Text chat requests</div></div>
         <div class="stat-card"><div class="lbl">Plan status</div><div class="val" id="ovPlan" style="font-size:1.4rem;">—</div><div class="delta" id="ovPlanSub"></div></div>
       </div>
     </div>
@@ -182,15 +182,23 @@
 
     <!-- USAGE -->
     <div class="view" id="view-usage">
-      <div class="page-top"><div><h1>Usage</h1><p>Requests across all your API keys, last 14 days.</p></div></div>
+      <div class="page-top"><div><h1>Usage</h1><p>Requests and token usage across all your API keys.</p></div></div>
       <div class="panel">
-        <div class="panel-head"><h3>Requests / day</h3></div>
+        <div class="panel-head"><h3>Monthly token quota</h3></div>
+        <div class="limit-bar-wrap" id="quotaBarWrap">
+          <div class="limit-bar-top"><span id="quotaText">Loading...</span><span id="quotaResetText"></span></div>
+          <div class="limit-bar"><div class="limit-bar-fill" id="quotaFill" style="width:0%;"></div></div>
+          <div class="limit-note" id="quotaNote"></div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h3>Requests / day (last 14 days)</h3></div>
         <div id="usageChartWrap"><div class="empty-note">Loading...</div></div>
       </div>
       <div class="grid-3">
         <div class="stat-card"><div class="lbl">Text requests</div><div class="val" id="usageText">—</div></div>
-        <div class="stat-card"><div class="lbl">Audio requests</div><div class="val" id="usageAudio">—</div></div>
-        <div class="stat-card"><div class="lbl">Video requests</div><div class="val" id="usageVideo">—</div></div>
+        <div class="stat-card"><div class="lbl">Tokens used this period</div><div class="val" id="usageTokensUsed">—</div></div>
+        <div class="stat-card"><div class="lbl">Requests / minute limit</div><div class="val" id="usageRpm">—</div></div>
       </div>
     </div>
 
@@ -388,12 +396,29 @@
   // ---------- usage ----------
   async function loadUsage(){
     try {
-      const { byModality, daily } = await api('/api/usage/mine');
+      const { byModality, daily, quota } = await api('/api/usage/mine');
       document.getElementById('usageText').textContent = byModality.text;
-      document.getElementById('usageAudio').textContent = byModality.audio;
-      document.getElementById('usageVideo').textContent = byModality.video;
-      const total = byModality.text + byModality.audio + byModality.video;
-      document.getElementById('ovRequests').textContent = total;
+      document.getElementById('ovRequests').textContent = byModality.text;
+      document.getElementById('usageTokensUsed').textContent = quota.used.toLocaleString();
+      document.getElementById('usageRpm').textContent = quota.requestsPerMinute;
+
+      const quotaFill = document.getElementById('quotaFill');
+      const quotaText = document.getElementById('quotaText');
+      const quotaResetText = document.getElementById('quotaResetText');
+      const quotaNote = document.getElementById('quotaNote');
+      if (quota.limit === null){
+        quotaText.textContent = `${quota.used.toLocaleString()} tokens used — unlimited on your plan`;
+        quotaFill.style.width = '4%';
+        quotaNote.textContent = 'Your plan has no monthly token limit.';
+      } else {
+        const pct = Math.min(100, (quota.used / quota.limit) * 100);
+        quotaText.textContent = `${quota.used.toLocaleString()} / ${quota.limit.toLocaleString()} tokens`;
+        quotaFill.style.width = pct + '%';
+        quotaNote.textContent = pct >= 100
+          ? 'Quota reached — requests are rejected until it resets or you upgrade.'
+          : 'Upgrade for a higher monthly token limit.';
+      }
+      quotaResetText.textContent = quota.resetsAt ? `Resets ${new Date(quota.resetsAt).toISOString().slice(0,10)}` : '';
 
       const wrap = document.getElementById('usageChartWrap');
       if (!daily.length){

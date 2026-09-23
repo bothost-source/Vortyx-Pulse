@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Vortyx Pulse — One API. Every modality.</title>
+<title>Vortyx Pulse — One API for real reasoning.</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -282,9 +282,9 @@
 </header>
 
 <section class="hero">
-  <div class="eyebrow"><span class="dot"></span> ONE MODEL · CHAT · VOICE · VIDEO</div>
-  <h1>One signal in.<br><span class="fade">Every modality out.</span></h1>
-  <p class="sub">Vortyx Pulse is a single API that reasons in text, listens in audio, and sees in video — no separate endpoints, no separate bills.</p>
+  <div class="eyebrow"><span class="dot"></span> TEXT CHAT · REASONING · CODE</div>
+  <h1>One signal in.<br><span class="fade">A real answer out.</span></h1>
+  <p class="sub">Vortyx Pulse is a single text API for chat, reasoning, and code — one key, one endpoint, no separate bills.</p>
   <div class="hero-cta">
     <a href="login.html" class="btn btn-solid btn-lg">Start building — free</a>
     <a href="#pricing" class="btn btn-ghost btn-lg" style="border:1px solid var(--line-bright);">View pricing</a>
@@ -302,33 +302,31 @@
 
 <div class="strip">
   <span><b>Text</b> · reasoning &amp; chat</span>
-  <span><b>Audio</b> · speech in / speech out</span>
-  <span><b>Video</b> · frame-level understanding</span>
-  <span><b>99.95%</b> uptime SLA</span>
-  <span><b>Sub-30ms</b> p50 first token</span>
+  <span><b>Code</b> · JS, Python, Node &amp; more</span>
+  <span><b>Token-based</b> usage limits</span>
 </div>
 
 <section class="section-pad" id="platform" data-reveal>
   <div class="kicker">Platform</div>
   <div class="section-head">
-    <h2>Three modalities. One model, one key, one bill.</h2>
-    <p>Most providers make you stitch together separate APIs for text, speech, and vision. Vortyx Pulse handles all three natively, so your product ships faster and your infra stays simple.</p>
+    <h2>One model. One key, one bill.</h2>
+    <p>A single text API for chat, reasoning, and code — no separate endpoints to juggle, one key across every request.</p>
   </div>
   <div class="grid-3">
     <div class="card">
-      <span class="idx mono">01 / TEXT</span>
+      <span class="idx mono">01 / CHAT</span>
       <h3>Chat &amp; reasoning</h3>
-      <p>Long-context conversation, function calling, and structured output from a single completions endpoint.</p>
+      <p>Multi-turn conversation from a single completions endpoint, with a consistent, trained persona.</p>
     </div>
     <div class="card">
-      <span class="idx mono">02 / AUDIO</span>
-      <h3>Voice in, voice out</h3>
-      <p>Stream speech directly into the model and get natural spoken responses back — no separate transcription step.</p>
+      <span class="idx mono">02 / CODE</span>
+      <h3>Code across languages</h3>
+      <p>Ask for help in JavaScript, Python, Node.js, and more — write, explain, and debug code in one place.</p>
     </div>
     <div class="card">
-      <span class="idx mono">03 / VIDEO</span>
-      <h3>Frame-level vision</h3>
-      <p>Send video and ask what happened, when, and why — the model reasons across frames, not just stills.</p>
+      <span class="idx mono">03 / USAGE</span>
+      <h3>Clear, token-based limits</h3>
+      <p>Every plan comes with a transparent monthly token quota and rate limit — see exactly where you stand from your dashboard.</p>
     </div>
   </div>
 </section>
@@ -337,17 +335,17 @@
   <div class="kicker">Integration</div>
   <div class="section-head">
     <h2>Live in one request.</h2>
-    <p>The same key, the same base URL, across every modality. Swap the input type — nothing else changes.</p>
+    <p>The same key, the same base URL, every time. Copy, paste, and swap in your own prompt.</p>
   </div>
   <div class="code-panel">
     <div class="feat-list">
       <div class="feat-item">
         <div class="chk">→</div>
-        <div><h4>Drop-in REST &amp; SDKs</h4><p>One base endpoint for text, audio, and video calls — use curl or an official SDK.</p></div>
+        <div><h4>Drop-in REST</h4><p>One base endpoint for text chat — use curl, fetch, or any HTTP client. No SDK install required.</p></div>
       </div>
       <div class="feat-item">
         <div class="chk">→</div>
-        <div><h4>Streaming by default</h4><p>Token and audio streaming built into every response, so interfaces feel instant.</p></div>
+        <div><h4>Transparent usage</h4><p>Every response includes a token count, and your dashboard shows exactly how much of your monthly quota is left.</p></div>
       </div>
       <div class="feat-item">
         <div class="chk">→</div>
@@ -356,33 +354,23 @@
     </div>
     <div>
       <div class="code-tabs">
-        <div class="code-tab active" data-tab="chat">chat.py</div>
-        <div class="code-tab" data-tab="curl">curl</div>
-        <div class="code-tab" data-tab="audio">audio.py</div>
+        <div class="code-tab active" data-tab="curl">curl</div>
+        <div class="code-tab" data-tab="js">fetch.js</div>
       </div>
-      <div class="code-block" id="codeBlock"><span class="c1">1</span>  <span class="c3">from</span> vortyx <span class="c3">import</span> Client
-<span class="c1">2</span>
-<span class="c1">3</span>  client = Client(api_key=<span class="c2">"vp_live_••••••••"</span>)
-<span class="c1">4</span>
-<span class="c1">5</span>  response = client.chat.create(
-<span class="c1">6</span>      model=<span class="c2">"vortyx-1"</span>,
-<span class="c1">7</span>      input=<span class="c2">"Summarize this call in 3 bullets"</span>,
-<span class="c1">8</span>      modality=<span class="c2">"audio"</span>,
-<span class="c1">9</span>      stream=<span class="c4">True</span>
-<span class="c1">10</span>  )
-<span class="c1">11</span>
-<span class="c1">12</span>  <span class="c3">for</span> chunk <span class="c3">in</span> response:
-<span class="c1">13</span>      print(chunk.delta, end=<span class="c2">""</span>)</div>
+      <div class="code-block" id="codeBlock"><span class="c1">1</span>  curl https://vortyx-pulse-backend.onrender.com/v1/chat \
+<span class="c1">2</span>    -H <span class="c2">"Authorization: Bearer vp_live_••••••••"</span> \
+<span class="c1">3</span>    -H <span class="c2">"Content-Type: application/json"</span> \
+<span class="c1">4</span>    -d <span class="c2">'{"input": "Summarize this in 3 bullets"}'</span></div>
     </div>
   </div>
 </section>
 
 <section class="section-pad" data-reveal>
   <div class="metrics">
-    <div class="metric"><div class="num">1</div><div class="lbl mono">UNIFIED MODEL</div></div>
-    <div class="metric"><div class="num">3</div><div class="lbl mono">NATIVE MODALITIES</div></div>
-    <div class="metric"><div class="num">99.95%</div><div class="lbl mono">UPTIME SLA</div></div>
-    <div class="metric"><div class="num">&lt;30ms</div><div class="lbl mono">P50 FIRST TOKEN</div></div>
+    <div class="metric"><div class="num">1</div><div class="lbl mono">MODEL, ONE KEY</div></div>
+    <div class="metric"><div class="num">4</div><div class="lbl mono">PLANS TO CHOOSE FROM</div></div>
+    <div class="metric"><div class="num">50K</div><div class="lbl mono">FREE MONTHLY TOKENS</div></div>
+    <div class="metric"><div class="num">5</div><div class="lbl mono">FREE-TIER API KEYS</div></div>
   </div>
 </section>
 
@@ -390,7 +378,7 @@
   <div class="kicker">Pricing</div>
   <div class="section-head">
     <h2>Start free. Scale when you're ready.</h2>
-    <p>Every plan uses the same model and the same endpoints — you're only choosing how long access lasts and how many keys you need.</p>
+    <p>Every plan uses the same model and the same endpoint — you're choosing how long access lasts, your token quota, and how many keys you need.</p>
   </div>
   <div class="grid-4">
     <div class="price-card">
@@ -400,10 +388,10 @@
       <ul>
         <li>Expires 30 days after signup</li>
         <li>Up to 5 API keys</li>
-        <li>Text, audio &amp; video access</li>
+        <li>Text access</li>
         <li>Community support</li>
       </ul>
-      <a href="#" class="btn btn-ghost" style="border:1px solid var(--line-bright);">Get started</a>
+      <a href="login.html" class="btn btn-ghost" style="border:1px solid var(--line-bright);">Get started</a>
     </div>
     <div class="price-card featured">
       <h4>Premium · 3 Month</h4>
@@ -415,7 +403,7 @@
         <li>Priority queueing</li>
         <li>Email support</li>
       </ul>
-      <a href="#" class="btn btn-solid">Upgrade</a>
+      <a href="login.html" class="btn btn-solid">Upgrade</a>
     </div>
     <div class="price-card">
       <h4>Premium · Annual</h4>
@@ -427,7 +415,7 @@
         <li>Priority queueing</li>
         <li>Email support</li>
       </ul>
-      <a href="#" class="btn btn-ghost" style="border:1px solid var(--line-bright);">Upgrade</a>
+      <a href="login.html" class="btn btn-ghost" style="border:1px solid var(--line-bright);">Upgrade</a>
     </div>
     <div class="price-card">
       <h4>Permanent</h4>
@@ -439,14 +427,14 @@
         <li>Priority queueing</li>
         <li>Priority support</li>
       </ul>
-      <a href="#" class="btn btn-ghost" style="border:1px solid var(--line-bright);">Upgrade</a>
+      <a href="login.html" class="btn btn-ghost" style="border:1px solid var(--line-bright);">Upgrade</a>
     </div>
   </div>
 </section>
 
 <section class="cta-band" data-reveal>
   <h2>Send your first request in under a minute.</h2>
-  <p>Free tier includes 5 API keys and full access to every modality.</p>
+  <p>Free tier includes 5 API keys and 50,000 tokens a month.</p>
   <a href="login.html" class="btn btn-solid btn-lg">Create free account</a>
 </section>
 
@@ -457,20 +445,20 @@
         <div class="brand-mark"></div>
         <span>Vortyx Pulse</span>
       </div>
-      <p>A single API for text, audio, and video reasoning — built for teams who want one integration, not three.</p>
+      <p>A single text API for chat, reasoning, and code — one key, one endpoint, one bill.</p>
     </div>
     <div class="foot-col">
       <h5>Product</h5>
       <a href="#platform">Platform</a>
-      <a href="#pricing">Pricing</a>
-      <a href="#">Docs</a>
+      <a href="pricing.html">Pricing</a>
+      <a href="docs.html">Docs</a>
       <a href="#">Status</a>
     </div>
     <div class="foot-col">
       <h5>Developers</h5>
-      <a href="#">Quickstart</a>
-      <a href="#">API reference</a>
-      <a href="#">SDKs</a>
+      <a href="docs.html#quickstart">Quickstart</a>
+      <a href="docs.html">API reference</a>
+      <a href="docs.html">SDKs</a>
       <a href="#">Changelog</a>
     </div>
     <div class="foot-col">
@@ -483,8 +471,8 @@
     <div class="foot-col">
       <h5>Account</h5>
       <a href="login.html">Sign in</a>
-      <a href="#">Dashboard</a>
-      <a href="#">Billing</a>
+      <a href="dashboard.html">Dashboard</a>
+      <a href="dashboard.html">Billing</a>
     </div>
   </div>
   <div class="foot-bottom">
@@ -496,42 +484,20 @@
 <script>
   // code tab switching
   const codeSamples = {
-    chat: `<span class="c1">1</span>  <span class="c3">from</span> vortyx <span class="c3">import</span> Client
-<span class="c1">2</span>
-<span class="c1">3</span>  client = Client(api_key=<span class="c2">"vp_live_••••••••"</span>)
-<span class="c1">4</span>
-<span class="c1">5</span>  response = client.chat.create(
-<span class="c1">6</span>      model=<span class="c2">"vortyx-1"</span>,
-<span class="c1">7</span>      input=<span class="c2">"Summarize this call in 3 bullets"</span>,
-<span class="c1">8</span>      modality=<span class="c2">"audio"</span>,
-<span class="c1">9</span>      stream=<span class="c4">True</span>
-<span class="c1">10</span>  )
-<span class="c1">11</span>
-<span class="c1">12</span>  <span class="c3">for</span> chunk <span class="c3">in</span> response:
-<span class="c1">13</span>      print(chunk.delta, end=<span class="c2">""</span>)`,
-    curl: `<span class="c1">1</span>  curl https://api.vortyxpulse.com/v1/chat \\
+    curl: `<span class="c1">1</span>  curl https://vortyx-pulse-backend.onrender.com/v1/chat \\
 <span class="c1">2</span>    -H <span class="c2">"Authorization: Bearer vp_live_••••••••"</span> \\
 <span class="c1">3</span>    -H <span class="c2">"Content-Type: application/json"</span> \\
-<span class="c1">4</span>    -d <span class="c2">'{</span>
-<span class="c1">5</span>  <span class="c2">      "model": "vortyx-1",</span>
-<span class="c1">6</span>  <span class="c2">      "input": "Summarize this call in 3 bullets",</span>
-<span class="c1">7</span>  <span class="c2">      "modality": "audio",</span>
-<span class="c1">8</span>  <span class="c2">      "stream": true</span>
-<span class="c1">9</span>  <span class="c2">    }'</span>`,
-    audio: `<span class="c1">1</span>  <span class="c3">from</span> vortyx <span class="c3">import</span> Client
-<span class="c1">2</span>
-<span class="c1">3</span>  client = Client(api_key=<span class="c2">"vp_live_••••••••"</span>)
-<span class="c1">4</span>
-<span class="c1">5</span>  <span class="c3">with</span> open(<span class="c2">"call.wav"</span>, <span class="c2">"rb"</span>) <span class="c3">as</span> f:
-<span class="c1">6</span>      response = client.audio.create(
-<span class="c1">7</span>          model=<span class="c2">"vortyx-1"</span>,
-<span class="c1">8</span>          audio=f,
-<span class="c1">9</span>          voice=<span class="c2">"natural"</span>,
-<span class="c1">10</span>          stream=<span class="c4">True</span>
-<span class="c1">11</span>      )
-<span class="c1">12</span>
-<span class="c1">13</span>  <span class="c3">for</span> chunk <span class="c3">in</span> response.audio:
-<span class="c1">14</span>      play(chunk)`
+<span class="c1">4</span>    -d <span class="c2">'{"input": "Summarize this in 3 bullets"}'</span>`,
+    js: `<span class="c1">1</span>  <span class="c3">const</span> res = <span class="c3">await</span> fetch(<span class="c2">"https://vortyx-pulse-backend.onrender.com/v1/chat"</span>, {
+<span class="c1">2</span>    method: <span class="c2">"POST"</span>,
+<span class="c1">3</span>    headers: {
+<span class="c1">4</span>      <span class="c2">"Authorization"</span>: <span class="c2">"Bearer vp_live_••••••••"</span>,
+<span class="c1">5</span>      <span class="c2">"Content-Type"</span>: <span class="c2">"application/json"</span>
+<span class="c1">6</span>    },
+<span class="c1">7</span>    body: JSON.stringify({ input: <span class="c2">"Summarize this in 3 bullets"</span> })
+<span class="c1">8</span>  });
+<span class="c1">9</span>  <span class="c3">const</span> data = <span class="c3">await</span> res.json();
+<span class="c1">10</span> console.log(data.output);`
   };
   document.querySelectorAll('.code-tab').forEach(tab=>{
     tab.addEventListener('click', ()=>{

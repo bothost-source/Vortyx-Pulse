@@ -112,8 +112,6 @@
     <div class="nav-group">
       <h5>Core</h5>
       <a href="#chat">Chat / text</a>
-      <a href="#audio">Audio</a>
-      <a href="#video">Video</a>
       <a href="#streaming">Streaming</a>
     </div>
     <div class="nav-group">
@@ -127,10 +125,11 @@
   <main>
     <div class="doc-section" id="intro">
       <h1>Introduction</h1>
-      <p>Vortyx Pulse gives you a single model, <code>vortyx-1</code>, that reasons across text, audio, and video through one API. Instead of separate providers for chat, speech, and vision, every request goes to the same base URL — you just change the <code>modality</code>.</p>
+      <p>Vortyx Pulse gives you a single model, <code>vortyx-1</code>, for text-based chat and reasoning. Every request goes to the same base URL and endpoint.</p>
       <div class="endpoint-tag"><span>Base URL</span></div>
-      <div class="code-block"><span class="c3">https</span>://api.vortyxpulse.com/v1</div>
-      <p>All requests and responses are JSON over HTTPS, except audio/video binary uploads, which use multipart form data.</p>
+      <div class="code-block"><span class="c3">https</span>://vortyx-pulse-backend.onrender.com/v1</div>
+      <p>All requests and responses are JSON over HTTPS.</p>
+      <div class="callout"><b>Audio and video are not available yet.</b> The API and dashboard currently support text only — those modalities will be added once the model supports them.</div>
     </div>
 
     <div class="doc-section" id="auth">
@@ -145,10 +144,10 @@
       <h3>1. Create a key</h3>
       <p>Sign up, then generate your first API key from the <code>API Keys</code> tab in your dashboard. Free accounts can create up to 5 keys.</p>
       <h3>2. Send a request</h3>
-      <div class="code-block"><span class="c1">1</span>  curl https://api.vortyxpulse.com/v1/chat \
+      <div class="code-block"><span class="c1">1</span>  curl https://vortyx-pulse-backend.onrender.com/v1/chat \
 <span class="c1">2</span>    -H <span class="c2">"Authorization: Bearer vp_live_••••••••"</span> \
 <span class="c1">3</span>    -H <span class="c2">"Content-Type: application/json"</span> \
-<span class="c1">4</span>    -d <span class="c2">'{"model": "vortyx-1", "input": "Say hello"}'</span></div>
+<span class="c1">4</span>    -d <span class="c2">'{"input": "Say hello"}'</span></div>
       <h3>3. Read the response</h3>
       <div class="code-block"><span class="c1">1</span>  {
 <span class="c1">2</span>    <span class="c5">"id"</span>: <span class="c2">"resp_8f2ac1"</span>,
@@ -161,44 +160,16 @@
     <div class="doc-section" id="chat">
       <h1>Chat / text</h1>
       <div class="endpoint-tag"><span class="method post">POST</span><span>/v1/chat</span></div>
-      <p>Send a text prompt and get a reasoning response back. Supports multi-turn conversation via the <code>messages</code> array.</p>
+      <p>Send a text prompt and get a reasoning response back.</p>
       <table class="params">
         <tr><th>Param</th><th>Type</th><th>Description</th></tr>
-        <tr><td>model</td><td class="mono">string</td><td>Always <code>"vortyx-1"</code> <span class="req">required</span></td></tr>
         <tr><td>input</td><td class="mono">string</td><td>Prompt text <span class="req">required</span></td></tr>
-        <tr><td>modality</td><td class="mono">string</td><td><code>"text"</code> (default), <code>"audio"</code>, or <code>"video"</code></td></tr>
-        <tr><td>stream</td><td class="mono">boolean</td><td>Stream the response as it's generated</td></tr>
       </table>
-    </div>
-
-    <div class="doc-section" id="audio">
-      <h1>Audio</h1>
-      <div class="endpoint-tag"><span class="method post">POST</span><span>/v1/audio</span></div>
-      <p>Send speech directly into the model — no separate transcription step. Vortyx Pulse listens, reasons, and can respond in natural spoken audio.</p>
-      <div class="code-block"><span class="c1">1</span>  <span class="c3">from</span> vortyx <span class="c3">import</span> Client
-<span class="c1">2</span>
-<span class="c1">3</span>  client = Client(api_key=<span class="c2">"vp_live_••••••••"</span>)
-<span class="c1">4</span>
-<span class="c1">5</span>  <span class="c3">with</span> open(<span class="c2">"call.wav"</span>, <span class="c2">"rb"</span>) <span class="c3">as</span> f:
-<span class="c1">6</span>      response = client.audio.create(model=<span class="c2">"vortyx-1"</span>, audio=f, voice=<span class="c2">"natural"</span>)</div>
-    </div>
-
-    <div class="doc-section" id="video">
-      <h1>Video</h1>
-      <div class="endpoint-tag"><span class="method post">POST</span><span>/v1/video</span></div>
-      <p>Upload a video file or stream frames — the model reasons across frames rather than sampling a single still image, so it can answer questions about motion, sequence, and timing.</p>
-      <div class="code-block"><span class="c1">1</span>  response = client.video.create(
-<span class="c1">2</span>      model=<span class="c2">"vortyx-1"</span>,
-<span class="c1">3</span>      video=open(<span class="c2">"clip.mp4"</span>, <span class="c2">"rb"</span>),
-<span class="c1">4</span>      input=<span class="c2">"What happens at the 10 second mark?"</span>
-<span class="c1">5</span>  )</div>
     </div>
 
     <div class="doc-section" id="streaming">
       <h1>Streaming</h1>
-      <p>Set <code>"stream": true</code> on any endpoint to receive output incrementally as server-sent events, rather than waiting for the full response.</p>
-      <div class="code-block"><span class="c1">1</span>  <span class="c3">for</span> chunk <span class="c3">in</span> response:
-<span class="c1">2</span>      print(chunk.delta, end=<span class="c2">""</span>)</div>
+      <p>Not available yet — every response is currently returned in full once generation finishes, rather than streamed incrementally.</p>
     </div>
 
     <div class="doc-section" id="keys">
@@ -214,10 +185,12 @@
     <div class="doc-section" id="limits">
       <h1>Rate limits &amp; tiers</h1>
       <table class="params">
-        <tr><th>Plan</th><th>Keys</th><th>Throttling</th><th>Queue</th></tr>
-        <tr><td>Free</td><td>5 max</td><td>Standard</td><td>Normal</td></tr>
-        <tr><td>Paid (any)</td><td>Unlimited</td><td>None</td><td>Priority</td></tr>
+        <tr><th>Plan</th><th>Keys</th><th>Requests / min</th><th>Monthly tokens</th></tr>
+        <tr><td>Free</td><td>5 max</td><td>8</td><td>50,000</td></tr>
+        <tr><td>3-Month / Annual</td><td>Unlimited</td><td>60</td><td>2,000,000</td></tr>
+        <tr><td>Permanent</td><td>Unlimited</td><td>120</td><td>Unlimited</td></tr>
       </table>
+      <p>Token usage resets automatically 30 days after your last reset — visible on your dashboard's Usage tab. A request that would exceed your rate limit or monthly quota is rejected before it reaches the model.</p>
     </div>
 
     <div class="doc-section" id="errors">
@@ -227,8 +200,8 @@
         <tr><td>401</td><td>Missing or invalid API key</td></tr>
         <tr><td>403</td><td>Key revoked or plan expired</td></tr>
         <tr><td>422</td><td>Missing required parameter</td></tr>
-        <tr><td>429</td><td>Rate limit exceeded (free tier)</td></tr>
-        <tr><td>500</td><td>Something failed on our side — retry with backoff</td></tr>
+        <tr><td>429</td><td>Rate limit exceeded, or monthly token quota exceeded</td></tr>
+        <tr><td>502</td><td>The model itself failed to respond — retry with backoff</td></tr>
       </table>
       <div class="next-links">
         <span></span>
