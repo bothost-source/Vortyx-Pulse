@@ -1,6 +1,7 @@
 const express = require('express');
 const crypto = require('crypto');
 const pool = require('../db/pool');
+const { getPlanLimits } = require('../config/plans');
 
 const router = express.Router();
 
@@ -9,8 +10,9 @@ const router = express.Router();
 //   POST https://api.vortyxpulse.com/v1/chat
 //   Authorization: Bearer vp_live_xxxxxxxx
 //
-// It authenticates by API key (not by login session), checks the owning
-// user's plan/expiry, then forwards the request to your actual model.
+// Flow: authenticate by API key -> check plan expiry -> check rate limit
+// -> check monthly token quota -> call the real model -> log usage.
+// A request that fails any check never reaches the model.
 // ---------------------------------------------------------------------------
 
 async function authenticateApiKey(req, res, next) {
@@ -29,7 +31,6 @@ async function authenticateApiKey(req, res, next) {
   if (!user) return res.status(401).json({ error: 'Invalid or revoked API key' });
   if (user.status === 'suspended') return res.status(403).json({ error: 'Account suspended' });
 
-  // Plan expiry check
   const expired =
     user.plan === 'free'
       ? new Date() > new Date(new Date(user.created_at).setDate(new Date(user.created_at).getDate() + 30))
@@ -41,55 +42,141 @@ async function authenticateApiKey(req, res, next) {
   next();
 }
 
-async function logUsage(req, modality, inputTokens = 0, outputTokens = 0) {
-  await pool.query(
-    `INSERT INTO request_logs (api_key_id, user_id, modality, input_tokens, output_tokens)
-     VALUES ($1,$2,$3,$4,$5)`,
-    [req.vortyxKeyId, req.vortyxUser.id, modality, inputTokens, outputTokens]
-  );
+// ---------------------------------------------------------------------------
+// Rate limiting: simple in-memory sliding window per user, keyed by user id.
+// Resets if the server restarts — fine for a single-instance deployment.
+// If you ever run multiple server instances, move this to Redis instead.
+// ---------------------------------------------------------------------------
+const requestLog = new Map(); // userId -> array of timestamps (ms)
+
+function checkRateLimit(req, res, next) {
+  const limits = getPlanLimits(req.vortyxUser.plan);
+  const now = Date.now();
+  const windowMs = 60 * 1000;
+
+  const timestamps = (requestLog.get(req.vortyxUser.id) || []).filter(t => now - t < windowMs);
+  if (timestamps.length >= limits.requestsPerMinute) {
+    return res.status(429).json({
+      error: `Rate limit exceeded — max ${limits.requestsPerMinute} requests per minute on your plan.`,
+    });
+  }
+  timestamps.push(now);
+  requestLog.set(req.vortyxUser.id, timestamps);
+  next();
 }
 
 // ---------------------------------------------------------------------------
-// callModel() is the ONE function to replace once your model is ready.
-// Point it at your own inference server, or at a third-party provider
-// (Gemini, etc.) if vortyx-1 is itself built as a routed wrapper.
+// Token quota: resets automatically once period_reset_at has passed.
+// A user over quota gets rejected here — the request never reaches the model.
 // ---------------------------------------------------------------------------
-async function callModel({ modality, input, stream }) {
-  // TODO: replace with a real call, e.g.:
-  //   const r = await fetch(process.env.MODEL_ENDPOINT, {
-  //     method: 'POST',
-  //     headers: { 'Authorization': `Bearer ${process.env.MODEL_API_KEY}` },
-  //     body: JSON.stringify({ modality, input }),
-  //   });
-  //   return await r.json();
+async function checkTokenQuota(req, res, next) {
+  const limits = getPlanLimits(req.vortyxUser.plan);
+  if (limits.monthlyTokens === null) return next(); // unlimited plan
+
+  let { tokens_used_this_period, period_reset_at, id: userId } = req.vortyxUser;
+
+  if (new Date() > new Date(period_reset_at)) {
+    const { rows } = await pool.query(
+      `UPDATE users SET tokens_used_this_period = 0, period_reset_at = now() + interval '30 days'
+       WHERE id = $1 RETURNING tokens_used_this_period, period_reset_at`,
+      [userId]
+    );
+    tokens_used_this_period = rows[0].tokens_used_this_period;
+    req.vortyxUser.tokens_used_this_period = tokens_used_this_period;
+  }
+
+  if (tokens_used_this_period >= limits.monthlyTokens) {
+    return res.status(429).json({
+      error: `Monthly token quota exceeded (${limits.monthlyTokens} tokens on your plan). Upgrade for a higher limit, or wait for your quota to reset.`,
+    });
+  }
+  next();
+}
+
+async function logUsage(req, modality, inputTokens = 0, outputTokens = 0) {
+  const total = inputTokens + outputTokens;
+  await Promise.all([
+    pool.query(
+      `INSERT INTO request_logs (api_key_id, user_id, modality, input_tokens, output_tokens)
+       VALUES ($1,$2,$3,$4,$5)`,
+      [req.vortyxKeyId, req.vortyxUser.id, modality, inputTokens, outputTokens]
+    ),
+    pool.query(
+      `UPDATE users SET tokens_used_this_period = tokens_used_this_period + $1 WHERE id = $2`,
+      [total, req.vortyxUser.id]
+    ),
+  ]);
+}
+
+// Rough token estimate (chars / 4) — good enough for quota tracking without
+// pulling in a full tokenizer. The HF Space doesn't return token counts.
+function estimateTokens(text) {
+  return Math.ceil((text || '').length / 4);
+}
+
+// ---------------------------------------------------------------------------
+// callModel() — talks to your deployed Hugging Face Space.
+//   MODEL_ENDPOINT = https://your-space-url/v1/chat/completions
+//   MODEL_API_KEY   = the INTERNAL_SECRET you set as a Space secret
+// ---------------------------------------------------------------------------
+async function callModel({ input }) {
+  if (!process.env.MODEL_ENDPOINT || !process.env.MODEL_API_KEY) {
+    throw new Error('Model is not configured yet — set MODEL_ENDPOINT and MODEL_API_KEY in the backend .env');
+  }
+
+  const r = await fetch(process.env.MODEL_ENDPOINT, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Internal-Secret': process.env.MODEL_API_KEY,
+    },
+    body: JSON.stringify({
+      messages: [{ role: 'user', content: input }],
+      max_tokens: 512,
+    }),
+  });
+
+  if (!r.ok) {
+    const errText = await r.text().catch(() => '');
+    throw new Error(`Model request failed (${r.status}): ${errText.slice(0, 300)}`);
+  }
+
+  const data = await r.json();
+  const outputText = data.choices?.[0]?.message?.content || '';
+
   return {
-    id: 'resp_' + crypto.randomBytes(6).toString('hex'),
+    id: data.id || ('resp_' + crypto.randomBytes(6).toString('hex')),
     model: 'vortyx-1',
-    output: `[stub response] You said: "${input}"`,
-    usage: { input_tokens: Math.ceil((input || '').length / 4), output_tokens: 12 },
+    output: outputText,
+    usage: {
+      input_tokens: estimateTokens(input),
+      output_tokens: estimateTokens(outputText),
+    },
   };
 }
 
-router.post('/chat', authenticateApiKey, async (req, res) => {
-  const { input, modality = 'text', stream } = req.body;
+router.post('/chat', authenticateApiKey, checkRateLimit, checkTokenQuota, async (req, res) => {
+  const { input, modality = 'text' } = req.body;
   if (!input) return res.status(422).json({ error: '"input" is required' });
+  if (modality !== 'text') {
+    return res.status(400).json({ error: `Modality "${modality}" is not available yet — only "text" is live right now.` });
+  }
 
-  const result = await callModel({ modality, input, stream });
-  await logUsage(req, modality, result.usage.input_tokens, result.usage.output_tokens);
-  res.json(result);
+  try {
+    const result = await callModel({ input });
+    await logUsage(req, modality, result.usage.input_tokens, result.usage.output_tokens);
+    res.json(result);
+  } catch (err) {
+    res.status(502).json({ error: 'Model request failed', detail: err.message });
+  }
 });
 
-router.post('/audio', authenticateApiKey, async (req, res) => {
-  // Real implementation: use multer or busboy to accept multipart audio upload.
-  const result = await callModel({ modality: 'audio', input: '[audio upload]' });
-  await logUsage(req, 'audio', 0, result.usage.output_tokens);
-  res.json(result);
+router.post('/audio', authenticateApiKey, checkRateLimit, checkTokenQuota, async (req, res) => {
+  res.status(400).json({ error: 'Audio modality is not available yet.' });
 });
 
-router.post('/video', authenticateApiKey, async (req, res) => {
-  const result = await callModel({ modality: 'video', input: '[video upload]' });
-  await logUsage(req, 'video', 0, result.usage.output_tokens);
-  res.json(result);
+router.post('/video', authenticateApiKey, checkRateLimit, checkTokenQuota, async (req, res) => {
+  res.status(400).json({ error: 'Video modality is not available yet.' });
 });
 
 module.exports = router;

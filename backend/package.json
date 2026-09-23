@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "Backend API for Vortyx Pulse — auth, API keys, payments, admin console, and the public AI API proxy.",
   "main": "server.js",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "scripts": {
     "start": "node server.js",
     "migrate": "node -e \"require('fs').readFile('./db/schema.sql','utf8',(e,sql)=>{if(e)throw e; require('./db/pool').query(sql).then(()=>{console.log('Schema applied');process.exit(0);}).catch(err=>{console.error(err);process.exit(1);});})\""

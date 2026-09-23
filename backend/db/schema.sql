@@ -18,8 +18,16 @@ CREATE TABLE IF NOT EXISTS users (
   plan_expires_at TIMESTAMPTZ,       -- null for 'perm' and unset free accounts use created_at+30d
   is_admin BOOLEAN NOT NULL DEFAULT FALSE,
   status TEXT NOT NULL DEFAULT 'active', -- 'active' | 'suspended'
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  -- Token quota tracking (see config/plans.js for the actual limits per plan)
+  tokens_used_this_period INT NOT NULL DEFAULT 0,
+  period_reset_at TIMESTAMPTZ NOT NULL DEFAULT (now() + interval '30 days')
 );
+
+-- Safe to re-run: adds the quota columns if this table already existed
+-- from before Phase 1 (e.g. a fresh Supabase import of an old dump).
+ALTER TABLE users ADD COLUMN IF NOT EXISTS tokens_used_this_period INT NOT NULL DEFAULT 0;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS period_reset_at TIMESTAMPTZ NOT NULL DEFAULT (now() + interval '30 days');
 
 -- ============ API KEYS ============
 CREATE TABLE IF NOT EXISTS api_keys (

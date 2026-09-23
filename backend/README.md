@@ -20,11 +20,25 @@ Server runs on `http://localhost:3000` by default.
 
 | Variable | Where to get it |
 |---|---|
-| `DATABASE_URL` | Render → your Postgres instance → "Connections" |
+| `DATABASE_URL` | Supabase project → Settings → Database → Connection string (use the pooler URL, port 6543) |
 | `JWT_SECRET` | Any long random string (e.g. `openssl rand -hex 32`) |
 | `GOOGLE_CLIENT_ID` | Google Cloud Console → APIs & Services → Credentials → OAuth 2.0 Client ID (Web application) |
 | `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` | Only needed once you wire up real Stripe in `routes/payments.js` |
-| `MODEL_ENDPOINT` / `MODEL_API_KEY` | Your own model, once ready — used in `routes/v1.js` |
+| `MODEL_ENDPOINT` | Your Hugging Face Space URL + `/v1/chat/completions` |
+| `MODEL_API_KEY` | The `INTERNAL_SECRET` you set as a secret on your Hugging Face Space |
+
+## 2b. Moving from Render Postgres to Supabase
+
+1. Go to supabase.com → create a free project (takes ~2 minutes to provision).
+2. Once it's ready: Settings → Database → Connection string → copy the
+   **Transaction pooler** string (port `6543`) — this works better on
+   Render/most PaaS hosts than the direct connection string.
+3. Replace `DATABASE_URL` in `.env` (or your Render environment variables)
+   with that string, filling in your database password.
+4. This is a fresh database — since your old Render Postgres already
+   expired, there's no data to migrate. `npm run migrate` (or the app's
+   normal startup, which runs migrations automatically) will create all
+   tables fresh on Supabase.
 
 ## 3. Google Sign-In setup
 
@@ -68,19 +82,43 @@ Render backend URL, e.g.:
 const API_BASE = "https://vortyx-pulse-backend.onrender.com";
 ```
 
-## 7. Connecting your real model
+## 7. The model connection, token quotas, and rate limits
 
-Everything about auth, keys, limits, and payments is real and working.
-The one deliberate stub is `callModel()` in `routes/v1.js` — replace it
-with a real call to whatever you build `vortyx-1` on top of. Nothing else
-needs to change; usage logging and plan/key validation already wrap it.
+`callModel()` in `routes/v1.js` now calls your real Hugging Face Space
+(set via `MODEL_ENDPOINT` / `MODEL_API_KEY`), instead of echoing input back.
+
+Every request to `/v1/chat` goes through, in order: API key auth → plan
+expiry check → rate limit → monthly token quota → the model itself. A
+request that fails any check is rejected before it ever reaches the model,
+with a clear error message telling the user why.
+
+Plan limits (requests/minute and monthly token quota) live in one place:
+`config/plans.js`. Change the numbers there — nothing else needs touching.
+Currently:
+
+| Plan | Monthly tokens | Requests / minute |
+|---|---|---|
+| Free | 50,000 | 8 |
+| 3-Month | 2,000,000 | 60 |
+| Annual | 2,000,000 | 60 |
+| Permanent | Unlimited | 120 |
+
+Rate limiting is in-memory (per running server instance) — fine for a
+single-instance deployment. Token quotas are stored in the database
+(`users.tokens_used_this_period`, resetting every 30 days via
+`users.period_reset_at`) so they persist across restarts and deploys.
+
+Audio and video modalities return a clear "not available yet" response
+rather than pretending to work — wire those up in `callModel()`/the two
+route handlers once you have a model that supports them.
 
 ## Folder structure
 
 ```
 server.js              entry point, wires up all routes
+config/plans.js         per-plan token quota + rate limit numbers
 db/schema.sql           run once to create tables
-db/pool.js               Postgres connection
+db/pool.js               Postgres connection (Supabase, SSL required)
 middleware/auth.js      JWT session verification + plan-expiry check
 routes/auth.js          Google sign-in, /me
 routes/keys.js          API key create/list/revoke (free tier limit enforced)
@@ -88,5 +126,5 @@ routes/payments.js      card (Stripe stub) + crypto payment submission
 routes/admin.js         stats, payment confirm/reject, users, reports, key revoke
 routes/usage.js          real per-user request stats
 routes/reports.js        user-submitted issue reports
-routes/v1.js             the public AI API your users' apps call
+routes/v1.js             the public AI API your users' apps call — real model, quotas, rate limits
 ```
