@@ -3,6 +3,7 @@ const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
 const { getPlanLimits } = require('../config/plans');
 const { callModel } = require('../lib/model');
+const { googleSearch, buildSearchAugmentedPrompt } = require('../lib/search');
 
 const router = express.Router();
 router.use(requireAuth); // every route below requires a logged-in session
@@ -43,10 +44,10 @@ async function checkAndGetQuota(user) {
   return { ok: tokens_used_this_period < limits.monthlyTokens, limits };
 }
 
-// POST /api/chat/send — { conversationId?, message }
+// POST /api/chat/send — { conversationId?, message, webSearch? }
 // Creates a new conversation if conversationId is omitted.
 router.post('/send', async (req, res) => {
-  const { conversationId, message } = req.body;
+  const { conversationId, message, webSearch } = req.body;
   if (!message || !message.trim()) return res.status(422).json({ error: 'Message cannot be empty' });
 
   if (!checkRateLimit(req.user.id, req.user.plan)) {
@@ -75,9 +76,24 @@ router.post('/send', async (req, res) => {
       convoId = rows[0].id;
     }
 
+    // Store the user's original message, unmodified — search results are
+    // only used to build the prompt sent to the model, not saved as if
+    // the user typed them.
     await pool.query(`INSERT INTO messages (conversation_id, role, content) VALUES ($1,'user',$2)`, [convoId, message]);
 
-    const result = await callModel({ input: message });
+    let modelInput = message;
+    let searchMeta = null;
+    if (webSearch) {
+      const { results, error } = await googleSearch(message);
+      if (error && !results.length) {
+        searchMeta = { used: false, error };
+      } else {
+        modelInput = buildSearchAugmentedPrompt(message, results);
+        searchMeta = { used: results.length > 0, sources: results.map(r => ({ title: r.title, link: r.link, source: r.source })) };
+      }
+    }
+
+    const result = await callModel({ input: modelInput });
     const total = result.usage.input_tokens + result.usage.output_tokens;
 
     await Promise.all([
@@ -91,7 +107,7 @@ router.post('/send', async (req, res) => {
       ),
     ]);
 
-    res.json({ conversationId: convoId, reply: result.output, usage: result.usage });
+    res.json({ conversationId: convoId, reply: result.output, usage: result.usage, search: searchMeta });
   } catch (err) {
     res.status(502).json({ error: 'Model request failed', detail: err.message });
   }

@@ -3,6 +3,7 @@ const crypto = require('crypto');
 const pool = require('../db/pool');
 const { getPlanLimits } = require('../config/plans');
 const { callModel, estimateTokens } = require('../lib/model');
+const { googleSearch, buildSearchAugmentedPrompt } = require('../lib/search');
 
 const router = express.Router();
 
@@ -112,16 +113,28 @@ async function logUsage(req, modality, inputTokens = 0, outputTokens = 0) {
 // (estimateTokens and callModel now live in lib/model.js, shared with routes/chat.js)
 
 router.post('/chat', authenticateApiKey, checkRateLimit, checkTokenQuota, async (req, res) => {
-  const { input, modality = 'text' } = req.body;
+  const { input, modality = 'text', web_search } = req.body;
   if (!input) return res.status(422).json({ error: '"input" is required' });
   if (modality !== 'text') {
     return res.status(400).json({ error: `Modality "${modality}" is not available yet — only "text" is live right now.` });
   }
 
   try {
-    const result = await callModel({ input });
+    let modelInput = input;
+    let search = null;
+    if (web_search) {
+      const { results, error } = await googleSearch(input);
+      if (error && !results.length) {
+        search = { used: false, error };
+      } else {
+        modelInput = buildSearchAugmentedPrompt(input, results);
+        search = { used: results.length > 0, sources: results.map(r => ({ title: r.title, link: r.link, source: r.source })) };
+      }
+    }
+
+    const result = await callModel({ input: modelInput });
     await logUsage(req, modality, result.usage.input_tokens, result.usage.output_tokens);
-    res.json(result);
+    res.json({ ...result, search });
   } catch (err) {
     res.status(502).json({ error: 'Model request failed', detail: err.message });
   }

@@ -77,6 +77,8 @@
   .input-inner textarea::placeholder{color:var(--ink-faint);}
   .send-btn{background:var(--ink); color:#0a0a0c; border:none; border-radius:11px; width:36px; height:36px; flex-shrink:0; cursor:pointer; font-size:15px; display:flex; align-items:center; justify-content:center; transition:opacity .15s;}
   .send-btn:disabled{opacity:0.35; cursor:not-allowed;}
+  .search-toggle{background:none; border:1px solid var(--line); color:var(--ink-faint); border-radius:10px; width:34px; height:34px; flex-shrink:0; cursor:pointer; font-size:14px; margin-bottom:1px;}
+  .search-toggle.active{border-color:var(--line-bright); background:var(--glass-hover); color:var(--ink);}
   .input-note{max-width:760px; margin:8px auto 0; text-align:center; font-size:11px; color:var(--ink-faint);}
 
   /* MODAL (settings) */
@@ -146,10 +148,11 @@
 
     <div class="input-bar">
       <div class="input-inner">
+        <button class="search-toggle" id="searchToggle" title="Search the web for this message">🔍</button>
         <textarea id="messageInput" placeholder="Message Vortyx Pulse..." rows="1"></textarea>
         <button class="send-btn" id="sendBtn">↑</button>
       </div>
-      <div class="input-note">Vortyx Pulse can make mistakes. Verify important code and facts.</div>
+      <div class="input-note">Vortyx Pulse can make mistakes. Verify important code and facts. <span id="searchStatusNote"></span></div>
     </div>
   </main>
 </div>
@@ -317,6 +320,13 @@
   // ---------- sending ----------
   const input = document.getElementById('messageInput');
   const sendBtn = document.getElementById('sendBtn');
+  const searchToggle = document.getElementById('searchToggle');
+  let webSearchOn = false;
+  searchToggle.addEventListener('click', ()=>{
+    webSearchOn = !webSearchOn;
+    searchToggle.classList.toggle('active', webSearchOn);
+    document.getElementById('searchStatusNote').textContent = webSearchOn ? '· Web search on' : '';
+  });
 
   input.addEventListener('input', ()=>{
     input.style.height = 'auto';
@@ -336,9 +346,20 @@
     showTyping();
 
     try {
-      const data = await api('/api/chat/send', { method:'POST', body: JSON.stringify({ conversationId: currentConvoId, message: text }) });
+      const data = await api('/api/chat/send', { method:'POST', body: JSON.stringify({ conversationId: currentConvoId, message: text, webSearch: webSearchOn }) });
       hideTyping();
-      appendMessage('assistant', data.reply);
+      const bubble = appendMessage('assistant', data.reply);
+      if (data.search?.used && data.search.sources?.length){
+        const src = document.createElement('div');
+        src.style.cssText = 'margin-top:8px; font-size:11px; color:var(--ink-faint);';
+        src.textContent = 'Sources: ' + data.search.sources.map(s=>s.source).join(', ');
+        bubble.querySelector('.msg-bubble').appendChild(src);
+      } else if (data.search && !data.search.used && data.search.error){
+        const src = document.createElement('div');
+        src.style.cssText = 'margin-top:8px; font-size:11px; color:var(--ink-faint);';
+        src.textContent = 'Web search unavailable — answered from existing knowledge.';
+        bubble.querySelector('.msg-bubble').appendChild(src);
+      }
       if (!currentConvoId){ currentConvoId = data.conversationId; loadConversations(); }
       loadQuota();
     } catch(e){
