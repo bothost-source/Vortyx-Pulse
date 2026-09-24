@@ -99,9 +99,9 @@
   .plan-tile .p{font-family:'Space Grotesk',sans-serif; font-size:1.4rem; font-weight:600;}
   .plan-tile .p span{font-size:11px; color:var(--ink-faint); font-family:'Inter';}
 
-  .pay-methods{display:flex; gap:10px; margin-bottom:20px; flex-wrap:wrap;}
-  .pay-method{border:1px solid var(--line); border-radius:9px; padding:12px 18px; font-size:13px; cursor:pointer; display:flex; align-items:center; gap:8px; transition:all .2s;}
-  .pay-method.selected{border-color:var(--line-bright); background:var(--glass-hover);}
+  .wallet-box{border:1px solid var(--line); border-radius:9px; padding:14px 16px; background:rgba(255,255,255,0.02); margin-top:14px;}
+  .wallet-box-top{font-size:11.5px; color:var(--ink-faint); margin-bottom:8px;}
+  .wallet-address-row{display:flex; align-items:center; justify-content:space-between; gap:10px; font-size:12.5px; word-break:break-all;}
   .crypto-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-top:14px;}
   .crypto-opt{border:1px solid var(--line); border-radius:8px; padding:10px; text-align:center; font-family:'JetBrains Mono',monospace; font-size:12px; cursor:pointer; transition:all .2s;}
   .crypto-opt.selected{border-color:var(--line-bright); background:var(--glass-hover);}
@@ -134,6 +134,7 @@
     <div class="brand"><div class="brand-mark"></div><span class="lbl-text">Vortyx Pulse</span></div>
     <div class="user-box" id="userBox"></div>
     <div class="side-nav">
+      <a href="chat.html"><span class="ic">◈</span><span class="lbl-text">Chat</span></a>
       <a class="active" data-view="overview"><span class="ic">◆</span><span class="lbl-text">Overview</span></a>
       <a data-view="keys"><span class="ic">⚿</span><span class="lbl-text">API Keys</span></a>
       <a data-view="usage"><span class="ic">▤</span><span class="lbl-text">Usage</span></a>
@@ -216,27 +217,31 @@
             <div class="plan-tile" data-plan="perm"><div class="n">Permanent</div><div class="p">$25 <span>once</span></div></div>
           </div>
 
-          <div class="lbl mono" style="font-size:11px; color:var(--ink-faint); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:10px;">Payment method</div>
-          <div class="pay-methods">
-            <div class="pay-method selected" data-method="card">💳 Card (Stripe)</div>
-            <div class="pay-method" data-method="crypto">₿ Crypto</div>
+          <div class="lbl mono" style="font-size:11px; color:var(--ink-faint); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:10px;">Pay with crypto</div>
+          <div class="crypto-grid" id="cryptoGrid">
+            <div class="crypto-opt selected" data-coin="USDT">USDT</div>
+            <div class="crypto-opt" data-coin="BTC">BTC</div>
+            <div class="crypto-opt" data-coin="LTC">LTC</div>
+            <div class="crypto-opt" data-coin="ETH">ETH</div>
           </div>
 
-          <div id="cryptoOptions" style="display:none;">
-            <div class="crypto-grid">
-              <div class="crypto-opt selected" data-coin="USDT">USDT</div>
-              <div class="crypto-opt" data-coin="BTC">BTC</div>
-              <div class="crypto-opt" data-coin="LTC">LTC</div>
-              <div class="crypto-opt" data-coin="ETH">ETH</div>
+          <div class="wallet-box" id="walletBox">
+            <div class="wallet-box-top">
+              <span class="lbl-text" id="walletNetwork">Loading address...</span>
             </div>
-            <input type="text" class="tx-input" id="txRefInput" placeholder="Transaction hash (optional, speeds up confirmation)">
-            <div class="pending-note">
-              <span>⏱</span>
-              <span>Crypto payments are verified manually by our team. After sending payment, your plan will be activated within <b style="color:var(--ink);">12 hours or less</b> — you'll see it as "Pending" below until confirmed.</span>
+            <div class="wallet-address-row">
+              <span class="mono" id="walletAddress">—</span>
+              <button class="btn btn-ghost" id="copyWalletBtn" style="padding:5px 10px; font-size:12px;">Copy</button>
             </div>
           </div>
 
-          <button class="btn btn-solid" id="payBtn" style="margin-top:20px;">Pay $5 with Card</button>
+          <input type="text" class="tx-input" id="txRefInput" placeholder="Paste the transaction ID / hash after sending payment (required)">
+          <div class="pending-note">
+            <span>⏱</span>
+            <span>Send the exact plan amount to the address above, then submit the transaction ID below. We check the format automatically, but a real person on our team confirms the payment on-chain — usually within <b style="color:var(--ink);">12 hours or less</b>. You'll see it as "Pending" until then.</span>
+          </div>
+
+          <button class="btn btn-solid" id="payBtn" style="margin-top:20px;">I've sent $5 in USDT</button>
         </div>
       </div>
 
@@ -336,7 +341,7 @@
         <div class="key-row">
           <div class="name">${k.name}</div>
           <div class="key-value"><span class="k mono">${k._reveal ? k._fullKey : maskPrefix(k.key_prefix)}</span>
-            ${k._fullKey ? `<button class="eye-btn" data-eye="${k.id}">${k._reveal ? '🙈' : '👁'}</button>` : ''}
+            ${k._fullKey ? `<button class="eye-btn" data-eye="${k.id}" title="Show/hide">${k._reveal ? '🙈' : '👁'}</button><button class="eye-btn" data-copy="${k.id}" title="Copy key">📋</button>` : ''}
           </div>
           <div class="key-meta">${new Date(k.created_at).toISOString().slice(0,10)}</div>
           <button class="revoke-btn" data-revoke="${k.id}">Revoke</button>
@@ -347,6 +352,13 @@
         const k = cachedKeys.find(x=>x.id===b.dataset.eye);
         k._reveal = !k._reveal;
         renderKeys();
+      });
+    });
+    document.querySelectorAll('[data-copy]').forEach(b=>{
+      b.addEventListener('click', ()=>{
+        const k = cachedKeys.find(x=>x.id===b.dataset.copy);
+        if (!k?._fullKey) return;
+        navigator.clipboard.writeText(k._fullKey).then(()=>toast('API key copied')).catch(()=>toast('Copy failed', true));
       });
     });
     document.querySelectorAll('[data-revoke]').forEach(b=>{
@@ -435,7 +447,7 @@
   // ---------- billing ----------
   const planPrices = {free:0, '3mo':5, annual:10, perm:25};
   const planLabels = {free:'Free', '3mo':'3-Month', annual:'Annual', perm:'Permanent'};
-  let selectedPlan = '3mo', selectedMethod = 'card', selectedCoin = 'USDT';
+  let selectedPlan = '3mo', selectedCoin = 'USDT', wallets = {};
 
   document.querySelectorAll('.plan-tile').forEach(t=>{
     t.addEventListener('click', ()=>{
@@ -443,26 +455,38 @@
       t.classList.add('selected'); selectedPlan = t.dataset.plan; updatePayBtn();
     });
   });
-  document.querySelectorAll('.pay-method').forEach(m=>{
-    m.addEventListener('click', ()=>{
-      document.querySelectorAll('.pay-method').forEach(x=>x.classList.remove('selected'));
-      m.classList.add('selected'); selectedMethod = m.dataset.method;
-      document.getElementById('cryptoOptions').style.display = selectedMethod==='crypto' ? 'block' : 'none';
-      updatePayBtn();
-    });
-  });
   document.querySelectorAll('.crypto-opt').forEach(c=>{
     c.addEventListener('click', ()=>{
       document.querySelectorAll('.crypto-opt').forEach(x=>x.classList.remove('selected'));
-      c.classList.add('selected'); selectedCoin = c.dataset.coin; updatePayBtn();
+      c.classList.add('selected'); selectedCoin = c.dataset.coin;
+      renderWallet(); updatePayBtn();
     });
   });
   function updatePayBtn(){
     const btn = document.getElementById('payBtn');
     const price = planPrices[selectedPlan];
     if (selectedPlan === 'free'){ btn.textContent = 'Switch to Free'; return; }
-    btn.textContent = selectedMethod === 'card' ? `Pay $${price} with Card` : `Pay $${price} with ${selectedCoin}`;
+    btn.textContent = `I've sent $${price} in ${selectedCoin}`;
   }
+  function renderWallet(){
+    const w = wallets[selectedCoin];
+    if (!w){ document.getElementById('walletNetwork').textContent = 'Address not configured yet'; document.getElementById('walletAddress').textContent = '—'; return; }
+    document.getElementById('walletNetwork').textContent = `${selectedCoin} · ${w.network} network — send exactly this address`;
+    document.getElementById('walletAddress').textContent = w.address;
+  }
+  async function loadWallets(){
+    try {
+      const { wallets: w } = await api('/api/payments/wallets');
+      wallets = w; renderWallet();
+    } catch(e){
+      document.getElementById('walletNetwork').textContent = "Couldn't load wallet address";
+    }
+  }
+  document.getElementById('copyWalletBtn').addEventListener('click', ()=>{
+    const addr = wallets[selectedCoin]?.address;
+    if (!addr) return;
+    navigator.clipboard.writeText(addr).then(()=>toast('Address copied')).catch(()=>toast('Copy failed', true));
+  });
 
   async function loadPayments(){
     try {
@@ -473,7 +497,7 @@
       } else {
         wrap.innerHTML = payments.map(p=>`
           <div class="bill-row">
-            <span class="l">${planLabels[p.plan] || p.plan} — ${p.method}</span>
+            <span class="l">${planLabels[p.plan] || p.plan} — ${p.method}${p.tx_reference ? ` · <span class="mono" style="font-size:11px;">${p.tx_reference.slice(0,10)}…</span>` : ''}</span>
             <span class="r"><span class="status-pill ${p.status}">${p.status}</span><span class="mono" style="color:var(--ink-faint);">${new Date(p.created_at).toISOString().slice(0,10)}</span></span>
           </div>`).join('');
       }
@@ -484,15 +508,12 @@
 
   document.getElementById('payBtn').addEventListener('click', async ()=>{
     if (selectedPlan === 'free'){ toast('You are already able to use the Free plan by simply not upgrading.'); return; }
+    const txReference = document.getElementById('txRefInput').value.trim();
+    if (!txReference){ toast('Paste your transaction ID first', true); return; }
     try {
-      if (selectedMethod === 'crypto'){
-        const txReference = document.getElementById('txRefInput').value.trim();
-        await api('/api/payments/crypto', { method:'POST', body: JSON.stringify({ plan: selectedPlan, coin: selectedCoin, txReference }) });
-        toast(`Payment recorded — send ${selectedCoin} and it'll confirm within 12h`);
-      } else {
-        await api('/api/payments/card', { method:'POST', body: JSON.stringify({ plan: selectedPlan }) });
-        toast('Card payment started — connect Stripe on the backend to complete checkout');
-      }
+      await api('/api/payments/crypto', { method:'POST', body: JSON.stringify({ plan: selectedPlan, coin: selectedCoin, txReference }) });
+      toast(`Payment recorded — we'll confirm it within 12h`);
+      document.getElementById('txRefInput').value = '';
       loadPayments();
     } catch(e){ toast(e.message, true); }
   });
@@ -500,7 +521,8 @@
   // ---------- boot ----------
   (async function boot(){
     await loadMe();
-    await Promise.all([loadKeys(), loadUsage(), loadPayments()]);
+    await Promise.all([loadKeys(), loadUsage(), loadPayments(), loadWallets()]);
+    updatePayBtn();
   })();
 </script>
 

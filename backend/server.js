@@ -12,6 +12,8 @@ const adminRoutes = require('./routes/admin');
 const usageRoutes = require('./routes/usage');
 const reportsRoutes = require('./routes/reports');
 const v1Routes = require('./routes/v1');
+const chatRoutes = require('./routes/chat');
+const accountRoutes = require('./routes/account');
 
 const app = express();
 
@@ -28,6 +30,8 @@ app.use('/api/payments', paymentsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/usage', usageRoutes);
 app.use('/api/reports', reportsRoutes);
+app.use('/api/chat', chatRoutes);
+app.use('/api/account', accountRoutes);
 
 app.use('/v1', v1Routes);
 

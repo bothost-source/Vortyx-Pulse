@@ -70,14 +70,39 @@ CREATE TABLE IF NOT EXISTS reports (
   resolved_at TIMESTAMPTZ
 );
 
+-- ============ CONVERSATIONS (website chat) ============
+CREATE TABLE IF NOT EXISTS conversations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  title TEXT NOT NULL DEFAULT 'New chat',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_conversations_user ON conversations(user_id, updated_at DESC);
+
+CREATE TABLE IF NOT EXISTS messages (
+  id BIGSERIAL PRIMARY KEY,
+  conversation_id UUID NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+  role TEXT NOT NULL, -- 'user' | 'assistant'
+  content TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversation_id, created_at);
+
 -- ============ USAGE (optional, for the Usage dashboard tab) ============
 CREATE TABLE IF NOT EXISTS request_logs (
   id BIGSERIAL PRIMARY KEY,
-  api_key_id UUID NOT NULL REFERENCES api_keys(id) ON DELETE CASCADE,
+  api_key_id UUID REFERENCES api_keys(id) ON DELETE CASCADE, -- null for website-chat requests
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   modality TEXT NOT NULL, -- 'text' | 'audio' | 'video'
+  source TEXT NOT NULL DEFAULT 'api', -- 'api' | 'web'
   input_tokens INT DEFAULT 0,
   output_tokens INT DEFAULT 0,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_request_logs_user_date ON request_logs(user_id, created_at);
+
+-- Safe to re-run: relax api_key_id to nullable + add source column if this
+-- table already existed from before website chat was added.
+ALTER TABLE request_logs ALTER COLUMN api_key_id DROP NOT NULL;
+ALTER TABLE request_logs ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAULT 'api';

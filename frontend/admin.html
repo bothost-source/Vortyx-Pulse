@@ -148,7 +148,7 @@
       </div>
       <div class="panel">
         <table class="data">
-          <thead><tr><th>User</th><th>Plan</th><th>Amount</th><th>Method</th><th>Status</th><th>Date</th><th></th></tr></thead>
+          <thead><tr><th>User</th><th>Plan</th><th>Amount</th><th>Method</th><th>Transaction</th><th>Status</th><th>Date</th><th></th></tr></thead>
           <tbody id="paymentsTable"></tbody>
         </table>
       </div>
@@ -264,11 +264,12 @@
       const { payments } = await api('/api/admin/payments' + (filter ? `?status=${filter}` : ''));
       const tbody = document.getElementById('paymentsTable');
       if (!payments.length){
-        tbody.innerHTML = `<tr><td colspan="7"><div class="empty-note">No payments${filter ? ' with status "'+filter+'"' : ''} yet.</div></td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8"><div class="empty-note">No payments${filter ? ' with status "'+filter+'"' : ''} yet.</div></td></tr>`;
       } else {
         tbody.innerHTML = payments.map(p => `
           <tr>
             <td>${p.email}</td><td>${PLAN_LABEL[p.plan]||p.plan}</td><td>$${Number(p.amount_usd).toFixed(2)}</td><td class="mono">${p.method}</td>
+            <td class="mono" style="font-size:11px;">${p.tx_reference ? (p.explorerUrl ? `<a href="${p.explorerUrl}" target="_blank" style="color:var(--ink-dim); text-decoration:underline;">${p.tx_reference.slice(0,10)}…</a>` : p.tx_reference.slice(0,10)+'…') : '—'}</td>
             <td><span class="status-pill ${p.status}">${p.status}</span></td>
             <td class="mono" style="font-size:11.5px;">${new Date(p.created_at).toISOString().slice(0,16).replace('T',' ')}</td>
             <td>${p.status==='pending' ? `<div class="btn-row"><button class="btn btn-solid confirm-btn" data-id="${p.id}">Confirm</button><button class="btn btn-bad reject-btn" data-id="${p.id}">Reject</button></div>` : ''}</td>
@@ -288,7 +289,7 @@
         });
       });
     } catch(e){
-      document.getElementById('paymentsTable').innerHTML = `<tr><td colspan="7"><div class="error-note">Couldn't load payments: ${e.message}</div></td></tr>`;
+      document.getElementById('paymentsTable').innerHTML = `<tr><td colspan="8"><div class="error-note">Couldn't load payments: ${e.message}</div></td></tr>`;
     }
   }
   document.querySelectorAll('#payTabs .tab').forEach(t=>{

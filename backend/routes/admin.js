@@ -1,6 +1,7 @@
 const express = require('express');
 const pool = require('../db/pool');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
+const { explorerUrl } = require('../config/wallets');
 
 const router = express.Router();
 router.use(requireAuth, requireAdmin); // every route below is admin-only
@@ -47,7 +48,8 @@ router.get('/payments', async (req, res) => {
      ${where} ORDER BY p.created_at DESC LIMIT 200`,
     params
   );
-  res.json({ payments: rows });
+  const payments = rows.map(p => ({ ...p, explorerUrl: explorerUrl(p.method, p.tx_reference) }));
+  res.json({ payments });
 });
 
 // Confirm a pending payment: marks it completed and extends/activates the user's plan.
