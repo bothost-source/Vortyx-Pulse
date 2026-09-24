@@ -120,7 +120,7 @@
     <div class="new-chat-btn" id="newChatBtn"><span>+</span><span>New chat</span></div>
     <div class="convo-list" id="convoList"><div class="convo-empty">Loading...</div></div>
     <div class="sidebar-bottom">
-      <a href="dashboard.html"><span>◆</span><span>Dashboard</span></a>
+      <a href="/dashboard"><span>◆</span><span>Dashboard</span></a>
       <button id="settingsBtn"><span>⚙</span><span>Settings</span></button>
       <button id="signOutBtn"><span>⏻</span><span>Sign out</span></button>
     </div>
@@ -176,7 +176,7 @@
 <script>
   const API_BASE = "https://vortyx-pulse-backend.onrender.com";
   const token = localStorage.getItem('vortyx_token');
-  if (!token) window.location.href = 'login.html';
+  if (!token) window.location.href = '/login';
 
   function toast(msg, bad=false){
     const t = document.getElementById('toast');
@@ -191,7 +191,7 @@
       headers: { 'Content-Type':'application/json', 'Authorization': 'Bearer ' + token, ...(opts.headers||{}) }
     });
     const data = await res.json().catch(()=>({}));
-    if (res.status === 401) { localStorage.removeItem('vortyx_token'); window.location.href = 'login.html'; throw new Error('Session expired'); }
+    if (res.status === 401) { localStorage.removeItem('vortyx_token'); window.location.href = '/login'; throw new Error('Session expired'); }
     if (!res.ok) throw new Error(data.error || 'Request failed');
     return data;
   }
@@ -391,13 +391,13 @@
     try {
       await api('/api/account/me', { method:'DELETE' });
       localStorage.removeItem('vortyx_token'); localStorage.removeItem('vortyx_user');
-      window.location.href = 'index.html';
+      window.location.href = '/';
     } catch(e){ toast(e.message, true); }
   });
 
   document.getElementById('signOutBtn').addEventListener('click', ()=>{
     localStorage.removeItem('vortyx_token'); localStorage.removeItem('vortyx_user');
-    window.location.href = 'login.html';
+    window.location.href = '/login';
   });
 
   // ---------- boot ----------

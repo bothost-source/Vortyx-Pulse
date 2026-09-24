@@ -79,7 +79,7 @@
       localStorage.setItem('vortyx_token', data.token);
       localStorage.setItem('vortyx_user', JSON.stringify(data.user));
       
-      const redirect = data.user.is_admin ? 'admin.html' : 'dashboard.html';
+      const redirect = data.user.is_admin ? '/admin' : '/dashboard';
       console.log('Redirecting to:', redirect);
       window.location.href = redirect;
       

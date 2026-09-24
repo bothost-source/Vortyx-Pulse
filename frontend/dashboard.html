@@ -134,13 +134,13 @@
     <div class="brand"><div class="brand-mark"></div><span class="lbl-text">Vortyx Pulse</span></div>
     <div class="user-box" id="userBox"></div>
     <div class="side-nav">
-      <a href="chat.html"><span class="ic">◈</span><span class="lbl-text">Chat</span></a>
+      <a href="/chat"><span class="ic">◈</span><span class="lbl-text">Chat</span></a>
       <a class="active" data-view="overview"><span class="ic">◆</span><span class="lbl-text">Overview</span></a>
       <a data-view="keys"><span class="ic">⚿</span><span class="lbl-text">API Keys</span></a>
       <a data-view="usage"><span class="ic">▤</span><span class="lbl-text">Usage</span></a>
       <a data-view="billing"><span class="ic">$</span><span class="lbl-text">Billing</span></a>
       <div class="side-sep"></div>
-      <a href="docs.html"><span class="ic">▣</span><span class="lbl-text">Docs</span></a>
+      <a href="/docs"><span class="ic">▣</span><span class="lbl-text">Docs</span></a>
       <a id="logoutBtn"><span class="ic">⏻</span><span class="lbl-text">Sign out</span></a>
     </div>
     <div class="plan-box">
@@ -260,7 +260,7 @@
   const API_BASE = "https://vortyx-pulse-backend.onrender.com";
 
   const token = localStorage.getItem('vortyx_token');
-  if (!token) window.location.href = 'login.html';
+  if (!token) window.location.href = '/login';
 
   function toast(msg, bad=false){
     const t = document.getElementById('toast');
@@ -275,7 +275,7 @@
       headers: { 'Content-Type':'application/json', 'Authorization': 'Bearer ' + token, ...(opts.headers||{}) }
     });
     const data = await res.json().catch(()=>({}));
-    if (res.status === 401) { localStorage.removeItem('vortyx_token'); window.location.href = 'login.html'; throw new Error('Session expired'); }
+    if (res.status === 401) { localStorage.removeItem('vortyx_token'); window.location.href = '/login'; throw new Error('Session expired'); }
     if (!res.ok) throw new Error(data.error || 'Request failed');
     return data;
   }
@@ -293,7 +293,7 @@
   });
   document.getElementById('logoutBtn').addEventListener('click', ()=>{
     localStorage.removeItem('vortyx_token'); localStorage.removeItem('vortyx_user');
-    window.location.href = 'login.html';
+    window.location.href = '/login';
   });
 
   // ---------- current user / plan ----------

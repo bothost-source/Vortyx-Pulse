@@ -196,7 +196,7 @@
   const API_BASE = "https://vortyx-pulse-backend.onrender.com";
 
   const token = localStorage.getItem('vortyx_token');
-  if (!token) window.location.href = 'login.html';
+  if (!token) window.location.href = '/login';
 
   function toast(msg, bad=false){
     const t = document.getElementById('toast');
@@ -211,8 +211,8 @@
       headers: { 'Content-Type':'application/json', 'Authorization': 'Bearer ' + token, ...(opts.headers||{}) }
     });
     const data = await res.json().catch(()=>({}));
-    if (res.status === 401) { localStorage.removeItem('vortyx_token'); window.location.href = 'login.html'; throw new Error('Session expired'); }
-    if (res.status === 403 && data.error === 'Admin access required') { window.location.href = 'dashboard.html'; throw new Error('Not an admin'); }
+    if (res.status === 401) { localStorage.removeItem('vortyx_token'); window.location.href = '/login'; throw new Error('Session expired'); }
+    if (res.status === 403 && data.error === 'Admin access required') { window.location.href = '/dashboard'; throw new Error('Not an admin'); }
     if (!res.ok) throw new Error(data.error || 'Request failed');
     return data;
   }
@@ -229,7 +229,7 @@
   });
   document.getElementById('logoutBtn').addEventListener('click', ()=>{
     localStorage.removeItem('vortyx_token'); localStorage.removeItem('vortyx_user');
-    window.location.href = 'login.html';
+    window.location.href = '/login';
   });
 
   // ---------- overview ----------
