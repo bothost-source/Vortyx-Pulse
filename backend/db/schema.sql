@@ -85,9 +85,12 @@ CREATE TABLE IF NOT EXISTS messages (
   conversation_id UUID NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
   role TEXT NOT NULL, -- 'user' | 'assistant'
   content TEXT NOT NULL,
+  feedback TEXT, -- 'up' | 'down' | null
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversation_id, created_at);
+
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS feedback TEXT;
 
 -- ============ USAGE (optional, for the Usage dashboard tab) ============
 CREATE TABLE IF NOT EXISTS request_logs (

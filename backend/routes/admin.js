@@ -37,6 +37,19 @@ router.get('/stats/signups', async (req, res) => {
 });
 
 // ---------- PAYMENTS ----------
+router.get('/feedback', async (req, res) => {
+  const { rows } = await pool.query(
+    `SELECT m.id, m.content, m.feedback, m.created_at, u.email,
+            (SELECT content FROM messages WHERE conversation_id=m.conversation_id AND id < m.id ORDER BY id DESC LIMIT 1) AS user_message
+     FROM messages m
+     JOIN conversations c ON c.id = m.conversation_id
+     JOIN users u ON u.id = c.user_id
+     WHERE m.feedback IS NOT NULL
+     ORDER BY m.created_at DESC LIMIT 200`
+  );
+  res.json({ feedback: rows });
+});
+
 router.get('/payments', async (req, res) => {
   const { status } = req.query; // 'pending' | 'completed' | undefined (all)
   const params = [];

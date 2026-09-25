@@ -8,6 +8,8 @@ const { googleSearch, buildSearchAugmentedPrompt } = require('../lib/search');
 const router = express.Router();
 router.use(requireAuth); // every route below requires a logged-in session
 
+const SYSTEM_PROMPT = "You are Vortyx Pulse, created by LONER. Only mention your name or who made you if the user directly asks who you are, what you're called, or who created you. For every other message — greetings, small talk, questions, requests — respond naturally and directly without introducing yourself.";
+
 // ---------------------------------------------------------------------------
 // Same protections as the public /v1/chat API: rate limit + monthly token
 // quota, checked before the model is ever called. Kept as its own small
@@ -76,28 +78,44 @@ router.post('/send', async (req, res) => {
       convoId = rows[0].id;
     }
 
+    // Pull prior turns so the model actually has conversation memory —
+    // previously only the latest message was ever sent, which is why it
+    // seemed to forget everything after one reply.
+    const priorRows = await pool.query(
+      `SELECT role, content FROM messages WHERE conversation_id=$1 ORDER BY created_at ASC LIMIT 40`,
+      [convoId]
+    );
+
     // Store the user's original message, unmodified — search results are
     // only used to build the prompt sent to the model, not saved as if
     // the user typed them.
     await pool.query(`INSERT INTO messages (conversation_id, role, content) VALUES ($1,'user',$2)`, [convoId, message]);
 
-    let modelInput = message;
+    let latestContent = message;
     let searchMeta = null;
     if (webSearch) {
       const { results, error } = await googleSearch(message);
-      if (error && !results.length) {
-        searchMeta = { used: false, error };
-      } else {
-        modelInput = buildSearchAugmentedPrompt(message, results);
-        searchMeta = { used: results.length > 0, sources: results.map(r => ({ title: r.title, link: r.link, source: r.source })) };
+      if (results.length) {
+        latestContent = buildSearchAugmentedPrompt(message, results);
+        searchMeta = { used: true, sources: results.map(r => ({ title: r.title, link: r.link, source: r.source })) };
       }
+      // If search failed or returned nothing, silently fall through to a
+      // normal model answer — no "search unavailable" text shown anywhere.
+      // (error is only logged server-side, never sent to the client)
+      if (error) console.error('web search failed:', error);
     }
 
-    const result = await callModel({ input: modelInput });
+    const messages = [
+      { role: 'system', content: SYSTEM_PROMPT },
+      ...priorRows.rows.map(m => ({ role: m.role, content: m.content })),
+      { role: 'user', content: latestContent },
+    ];
+
+    const result = await callModel({ messages, maxTokens: req.body.longForm ? 1500 : 900 });
     const total = result.usage.input_tokens + result.usage.output_tokens;
 
-    await Promise.all([
-      pool.query(`INSERT INTO messages (conversation_id, role, content) VALUES ($1,'assistant',$2)`, [convoId, result.output]),
+    const [assistantMsg] = await Promise.all([
+      pool.query(`INSERT INTO messages (conversation_id, role, content) VALUES ($1,'assistant',$2) RETURNING id`, [convoId, result.output]),
       pool.query(`UPDATE conversations SET updated_at = now() WHERE id = $1`, [convoId]),
       pool.query(`UPDATE users SET tokens_used_this_period = tokens_used_this_period + $1 WHERE id = $2`, [total, req.user.id]),
       pool.query(
@@ -107,7 +125,7 @@ router.post('/send', async (req, res) => {
       ),
     ]);
 
-    res.json({ conversationId: convoId, reply: result.output, usage: result.usage, search: searchMeta });
+    res.json({ conversationId: convoId, messageId: assistantMsg.rows[0].id, reply: result.output, usage: result.usage, search: searchMeta });
   } catch (err) {
     res.status(502).json({ error: 'Model request failed', detail: err.message });
   }
@@ -128,7 +146,7 @@ router.get('/conversations/:id', async (req, res) => {
   if (!convo.rows.length) return res.status(404).json({ error: 'Conversation not found' });
 
   const { rows } = await pool.query(
-    `SELECT role, content, created_at FROM messages WHERE conversation_id=$1 ORDER BY created_at ASC`,
+    `SELECT id, role, content, feedback, created_at FROM messages WHERE conversation_id=$1 ORDER BY created_at ASC`,
     [req.params.id]
   );
   res.json({ conversation: convo.rows[0], messages: rows });
@@ -142,6 +160,81 @@ router.delete('/conversations/:id', async (req, res) => {
   );
   if (!rows.length) return res.status(404).json({ error: 'Conversation not found' });
   res.json({ deleted: true });
+});
+
+// PATCH /api/chat/messages/:id/feedback — { feedback: 'up' | 'down' | null }
+router.patch('/messages/:id/feedback', async (req, res) => {
+  const { feedback } = req.body;
+  if (feedback !== null && feedback !== 'up' && feedback !== 'down') {
+    return res.status(422).json({ error: 'feedback must be "up", "down", or null' });
+  }
+  const { rows } = await pool.query(
+    `UPDATE messages m SET feedback=$1
+     FROM conversations c
+     WHERE m.id=$2 AND m.conversation_id=c.id AND c.user_id=$3 AND m.role='assistant'
+     RETURNING m.id`,
+    [feedback, req.params.id, req.user.id]
+  );
+  if (!rows.length) return res.status(404).json({ error: 'Message not found' });
+  res.json({ updated: true });
+});
+
+// ---------------------------------------------------------------------------
+// POST /api/chat/upload — multipart file upload. Accepts plain text/code
+// files directly, and .zip archives (extracting readable text files inside,
+// skipping binaries). Total size cap: 1MB. Returns the extracted text so the
+// frontend can attach it as context for the next message — this is NOT
+// stored on disk anywhere, it's processed in memory and discarded.
+// ---------------------------------------------------------------------------
+const multer = require('multer');
+const AdmZip = require('adm-zip');
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 1024 * 1024 } });
+
+const TEXT_EXTENSIONS = new Set([
+  '.txt', '.md', '.js', '.jsx', '.ts', '.tsx', '.py', '.java', '.c', '.cpp', '.h', '.hpp',
+  '.cs', '.go', '.rs', '.rb', '.php', '.html', '.css', '.json', '.yml', '.yaml', '.sql',
+  '.sh', '.env', '.xml', '.csv', '.log',
+]);
+
+function isLikelyText(name) {
+  const ext = name.slice(name.lastIndexOf('.')).toLowerCase();
+  return TEXT_EXTENSIONS.has(ext);
+}
+
+router.post('/upload', upload.single('file'), async (req, res) => {
+  if (!req.file) return res.status(422).json({ error: 'No file uploaded' });
+  const { originalname, buffer, mimetype } = req.file;
+
+  try {
+    if (originalname.toLowerCase().endsWith('.zip')) {
+      const zip = new AdmZip(buffer);
+      const entries = zip.getEntries();
+      let combined = '';
+      let filesRead = 0;
+      for (const entry of entries) {
+        if (entry.isDirectory) continue;
+        if (!isLikelyText(entry.entryName)) continue;
+        if (combined.length > 900000) break; // stay under ~1MB of extracted text
+        const text = entry.getData().toString('utf8');
+        combined += `\n\n--- ${entry.entryName} ---\n${text}`;
+        filesRead++;
+      }
+      if (!filesRead) {
+        return res.status(422).json({ error: 'No readable text/code files found in that zip.' });
+      }
+      return res.json({ filename: originalname, extractedText: combined.trim(), filesRead });
+    }
+
+    if (isLikelyText(originalname) || mimetype.startsWith('text/')) {
+      return res.json({ filename: originalname, extractedText: buffer.toString('utf8'), filesRead: 1 });
+    }
+
+    return res.status(422).json({
+      error: 'This file type isn\'t supported yet — Vortyx Pulse can read text and code files, and .zip archives of them. Image/PDF reading isn\'t available on this model yet.',
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Could not process that file', detail: err.message });
+  }
 });
 
 module.exports = router;

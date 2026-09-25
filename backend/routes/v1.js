@@ -113,26 +113,34 @@ async function logUsage(req, modality, inputTokens = 0, outputTokens = 0) {
 // (estimateTokens and callModel now live in lib/model.js, shared with routes/chat.js)
 
 router.post('/chat', authenticateApiKey, checkRateLimit, checkTokenQuota, async (req, res) => {
-  const { input, modality = 'text', web_search } = req.body;
+  const { input, messages: priorMessages, modality = 'text', web_search, max_tokens } = req.body;
   if (!input) return res.status(422).json({ error: '"input" is required' });
   if (modality !== 'text') {
     return res.status(400).json({ error: `Modality "${modality}" is not available yet — only "text" is live right now.` });
   }
 
   try {
-    let modelInput = input;
+    let latestContent = input;
     let search = null;
     if (web_search) {
       const { results, error } = await googleSearch(input);
-      if (error && !results.length) {
-        search = { used: false, error };
-      } else {
-        modelInput = buildSearchAugmentedPrompt(input, results);
-        search = { used: results.length > 0, sources: results.map(r => ({ title: r.title, link: r.link, source: r.source })) };
+      if (results.length) {
+        latestContent = buildSearchAugmentedPrompt(input, results);
+        search = { used: true, sources: results.map(r => ({ title: r.title, link: r.link, source: r.source })) };
       }
+      if (error) console.error('web search failed:', error);
     }
 
-    const result = await callModel({ input: modelInput });
+    // Optional: pass `messages` (array of {role, content}) for multi-turn
+    // conversations via the API. Without it, this behaves as a single-turn
+    // request like before.
+    const conversation = [
+      { role: 'system', content: "You are Vortyx Pulse, created by LONER. Only mention your name or who made you if the user directly asks who you are, what you're called, or who created you. For every other message, respond naturally and directly without introducing yourself." },
+      ...(Array.isArray(priorMessages) ? priorMessages : []),
+      { role: 'user', content: latestContent },
+    ];
+
+    const result = await callModel({ messages: conversation, maxTokens: Math.min(max_tokens || 900, 2000) });
     await logUsage(req, modality, result.usage.input_tokens, result.usage.output_tokens);
     res.json({ ...result, search });
   } catch (err) {
