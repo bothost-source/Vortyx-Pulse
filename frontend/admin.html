@@ -102,6 +102,7 @@
       <a data-view="payments"><span class="ic">$</span>Payments<span class="badge-count" id="pendingBadge" style="display:none;"></span></a>
       <a data-view="users"><span class="ic">◎</span>Users</a>
       <a data-view="reports"><span class="ic">⚑</span>Reports<span class="badge-count" id="reportBadge" style="display:none;"></span></a>
+      <a data-view="feedback"><span class="ic">✓</span>Feedback</a>
       <a data-view="keys"><span class="ic">⚿</span>API Keys</a>
       <div class="side-sep"></div>
       <a id="logoutBtn"><span class="ic">⏻</span>Sign out</a>
@@ -172,6 +173,17 @@
         <table class="data">
           <thead><tr><th>User</th><th>Subject</th><th>Status</th><th>Submitted</th><th></th></tr></thead>
           <tbody id="reportsTable"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- FEEDBACK -->
+    <div class="view" id="view-feedback">
+      <div class="page-top"><div><h1>Feedback</h1><p>Thumbs up/down left on individual chat responses.</p></div></div>
+      <div class="panel">
+        <table class="data">
+          <thead><tr><th>User</th><th>Rating</th><th>User message</th><th>Response</th><th>Date</th></tr></thead>
+          <tbody id="feedbackTable"></tbody>
         </table>
       </div>
     </div>
@@ -364,6 +376,27 @@
     }
   }
 
+  // ---------- feedback ----------
+  async function renderFeedback(){
+    try {
+      const { feedback } = await api('/api/admin/feedback');
+      const tbody = document.getElementById('feedbackTable');
+      tbody.innerHTML = feedback.length ? feedback.map(f=>`
+        <tr>
+          <td>${f.email}</td>
+          <td><span class="status-pill ${f.feedback==='up'?'completed':'rejected'}">${f.feedback==='up'?'👍 up':'👎 down'}</span></td>
+          <td style="max-width:240px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${f.user_message ? escapeHtmlAdmin(f.user_message) : '—'}</td>
+          <td style="max-width:280px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtmlAdmin(f.content)}</td>
+          <td class="mono" style="font-size:11.5px;">${new Date(f.created_at).toISOString().slice(0,16).replace('T',' ')}</td>
+        </tr>`).join('') : `<tr><td colspan="5"><div class="empty-note">No feedback submitted yet.</div></td></tr>`;
+    } catch(e){
+      document.getElementById('feedbackTable').innerHTML = `<tr><td colspan="5"><div class="error-note">Couldn't load feedback: ${e.message}</div></td></tr>`;
+    }
+  }
+  function escapeHtmlAdmin(s){
+    return (s||'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  }
+
   // ---------- admin keys ----------
   async function renderAdminKeys(q=''){
     try {
@@ -391,6 +424,7 @@
   renderPayments();
   renderUsers();
   renderReports();
+  renderFeedback();
   renderAdminKeys();
   loadOverviewPreviews();
 </script>
