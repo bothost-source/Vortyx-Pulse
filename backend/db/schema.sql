@@ -92,6 +92,20 @@ CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversation_id
 
 ALTER TABLE messages ADD COLUMN IF NOT EXISTS feedback TEXT;
 
+-- Real uploaded files, stored so they're actually downloadable later —
+-- not just dumped as raw text into the message content.
+CREATE TABLE IF NOT EXISTS message_attachments (
+  id BIGSERIAL PRIMARY KEY,
+  message_id BIGINT NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+  filename TEXT NOT NULL,
+  mime_type TEXT,
+  size_bytes INT NOT NULL,
+  content BYTEA NOT NULL,
+  extracted_text TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_attachments_message ON message_attachments(message_id);
+
 -- ============ USAGE (optional, for the Usage dashboard tab) ============
 CREATE TABLE IF NOT EXISTS request_logs (
   id BIGSERIAL PRIMARY KEY,

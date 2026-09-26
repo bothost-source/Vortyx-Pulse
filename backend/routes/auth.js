@@ -51,7 +51,7 @@ router.post('/google', async (req, res) => {
   const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '30d' });
   res.json({
     token,
-    user: { id: user.id, email: user.email, name: user.name, avatar_url: user.avatar_url, plan: user.plan, is_admin: user.is_admin },
+    user: { id: user.id, email: user.email, name: user.name, avatar_url: user.avatar_url, plan: user.plan, plan_expires_at: user.plan_expires_at, created_at: user.created_at, is_admin: user.is_admin },
   });
 });
 
@@ -65,7 +65,7 @@ router.get('/me', async (req, res) => {
     const { rows } = await pool.query('SELECT * FROM users WHERE id = $1', [decoded.userId]);
     const user = rows[0];
     if (!user) return res.status(401).json({ error: 'Not signed in' });
-    res.json({ user: { id: user.id, email: user.email, name: user.name, avatar_url: user.avatar_url, plan: user.plan, is_admin: user.is_admin } });
+  res.json({ user: { id: user.id, email: user.email, name: user.name, avatar_url: user.avatar_url, plan: user.plan, plan_expires_at: user.plan_expires_at, created_at: user.created_at, is_admin: user.is_admin } });
   } catch {
     res.status(401).json({ error: 'Session expired' });
   }

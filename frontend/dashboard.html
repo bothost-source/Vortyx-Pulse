@@ -72,7 +72,7 @@
   .key-row .name{font-weight:500; font-size:13.8px; width:150px; flex-shrink:0;}
   .key-value{flex:1; font-family:'JetBrains Mono',monospace; font-size:12.8px; color:var(--ink-dim); background:rgba(255,255,255,0.02); border:1px solid var(--line); padding:7px 12px; border-radius:7px; display:flex; justify-content:space-between; align-items:center; gap:10px; min-width:160px;}
   .key-value .k{overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
-  .eye-btn{background:none; border:none; color:var(--ink-faint); cursor:pointer; font-size:14px; flex-shrink:0;}
+  .eye-btn{background:none; border:none; color:var(--ink-faint); cursor:pointer; font-size:14px; flex-shrink:0; display:flex; align-items:center; justify-content:center;}
   .eye-btn:hover{color:var(--ink);}
   .key-meta{font-size:11.5px; color:var(--ink-faint); width:90px; flex-shrink:0; text-align:right;}
   .revoke-btn{color:var(--bad); background:none; border:1px solid rgba(224,163,163,0.35); border-radius:7px; padding:6px 12px; font-size:12px; cursor:pointer; flex-shrink:0;}
@@ -310,7 +310,13 @@
         <div class="lbl-text"><div class="u-name">${user.name || user.email}</div><div class="u-email">${user.email}</div></div>`;
       document.getElementById('sidePlanName').textContent = PLAN_LABEL[user.plan] || user.plan;
       document.getElementById('ovPlan').textContent = PLAN_LABEL[user.plan] || user.plan;
-      document.getElementById('sidePlanSub').textContent = user.plan === 'free' ? 'Expires 30 days after signup' : (user.plan === 'perm' ? 'Lifetime access' : 'Renews automatically');
+      document.getElementById('sidePlanSub').textContent = user.plan === 'free'
+        ? 'Expires 30 days after signup'
+        : (user.plan === 'perm'
+            ? 'Lifetime access'
+            : (user.plan_expires_at
+                ? `Active until ${new Date(user.plan_expires_at).toISOString().slice(0,10)} — does not renew automatically`
+                : 'Active — does not renew automatically'));
       document.getElementById('ovPlanSub').textContent = document.getElementById('sidePlanSub').textContent;
     } catch(e){
       toast(e.message, true);
@@ -342,7 +348,10 @@
         <div class="key-row">
           <div class="name">${k.name}</div>
           <div class="key-value"><span class="k mono">${k._reveal ? k._fullKey : maskPrefix(k.key_prefix)}</span>
-            ${k._fullKey ? `<button class="eye-btn" data-eye="${k.id}" title="Show/hide">${k._reveal ? '🙈' : '👁'}</button><button class="eye-btn" data-copy="${k.id}" title="Copy key">📋</button>` : ''}
+            ${k._fullKey ? `<button class="eye-btn" data-eye="${k.id}" title="Show/hide">${k._reveal
+              ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.94 10.94 0 0112 20c-7 0-11-8-11-8a18.7 18.7 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/><path d="M1 1l22 22"/></svg>'
+              : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>'
+            }</button><button class="eye-btn" data-copy="${k.id}" title="Copy key"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button>` : ''}
           </div>
           <div class="key-meta">${new Date(k.created_at).toISOString().slice(0,10)}</div>
           <button class="revoke-btn" data-revoke="${k.id}">Revoke</button>

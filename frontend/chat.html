@@ -87,6 +87,14 @@
   .file-card-body.open{max-height:400px; overflow-y:auto;}
   .file-card-body pre{margin:0; padding:12px; font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--ink-dim); white-space:pre-wrap; word-break:break-word;}
 
+  .entity-card{border:1px solid var(--line); border-radius:14px; background:rgba(255,255,255,0.02); padding:16px; margin-bottom:8px; max-width:480px;}
+  .entity-card-top{display:flex; justify-content:space-between; gap:12px;}
+  .entity-card-title{font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:1rem;}
+  .entity-card-desc{font-size:11.5px; color:var(--ink-faint); margin-top:2px;}
+  .entity-card-thumb{width:44px; height:44px; border-radius:10px; object-fit:cover; flex-shrink:0;}
+  .entity-card-extract{font-size:12.5px; color:var(--ink-dim); line-height:1.6; margin-top:12px;}
+  .entity-card-source{display:inline-block; margin-top:10px; font-size:11.5px; color:var(--ink-faint); text-decoration:underline;}
+
   .empty-state{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:20px;}
   .empty-state .wordmark{font-family:'Space Grotesk',sans-serif; font-size:2rem; font-weight:700; letter-spacing:-0.02em;}
   .empty-state p{font-size:13.5px; color:var(--ink-faint); max-width:36ch; line-height:1.6; margin-top:8px;}
@@ -101,6 +109,9 @@
   @keyframes blink{0%,80%,100%{opacity:.25;}40%{opacity:1;}}
 
   .input-bar{padding:12px 20px 18px; flex-shrink:0;}
+  .quota-banner{display:none; max-width:760px; margin:0 auto 10px; align-items:center; justify-content:space-between; gap:14px; padding:10px 16px; border-radius:12px; background:rgba(224,163,163,0.08); border:1px solid rgba(224,163,163,0.3); font-size:12.5px; color:var(--ink-dim);}
+  .quota-banner.show{display:flex;}
+  .quota-banner .upgrade-link{color:var(--ink); font-weight:600; white-space:nowrap; text-decoration:underline;}
   .attach-preview{max-width:760px; margin:0 auto 8px; display:flex; flex-wrap:wrap; gap:8px;}
   .composer{max-width:760px; margin:0 auto; border:1px solid var(--line-bright); border-radius:20px; background:var(--glass); padding:8px;}
   .composer-row{display:flex; align-items:flex-end; gap:6px;}
@@ -199,6 +210,10 @@
     </div>
 
     <div class="input-bar">
+      <div class="quota-banner" id="quotaBanner">
+        <span>Monthly limit reached — you'll need to upgrade to keep chatting.</span>
+        <a href="/dashboard" class="upgrade-link">Upgrade plan →</a>
+      </div>
       <div class="attach-preview" id="attachPreview"></div>
       <div class="composer">
         <div class="composer-row">
@@ -281,12 +296,16 @@
     }
     const data = await res.json().catch(()=>({}));
     if (res.status === 401) { localStorage.removeItem('vortyx_token'); window.location.href = '/login'; throw new Error('Session expired'); }
-    if (!res.ok) throw new Error(data.error || 'Request failed');
+    if (!res.ok) {
+      const err = new Error(data.error || 'Request failed');
+      err.quotaExceeded = !!data.quotaExceeded;
+      throw err;
+    }
     return data;
   }
 
   function friendlyError(e){
-    if (e.message === '__NETWORK__') return "Couldn't reach the server — it may be waking up from sleep, try again in a few seconds.";
+    if (e.message === '__NETWORK__') return "Couldn't reach the server — it may be waking up from sleep. Wait a few seconds and try again.";
     return e.message;
   }
 
@@ -472,11 +491,56 @@
     });
   }
 
-  function buildMessageRow(role, content, msgId, feedback){
+  async function downloadAttachment(id, filename){
+    try {
+      const res = await fetch(API_BASE + '/api/chat/attachments/' + id + '/download', {
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      if (!res.ok) throw new Error('Download failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = filename; a.click();
+      URL.revokeObjectURL(url);
+    } catch(e){ toast('Could not download file', true); }
+  }
+
+  function userAttachmentCardHtml(attachment){
+    const sizeKb = (attachment.sizeBytes / 1024).toFixed(1);
+    return `
+      <div class="file-card" data-attach-id="${attachment.id}">
+        <div class="file-card-head">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg>
+          <span class="file-card-name">${escapeHtml(attachment.filename)}</span>
+          <span class="file-card-meta">${sizeKb} KB</span>
+          <div class="file-card-actions">
+            <button class="icon-btn" data-download-attach="${attachment.id}" data-attach-name="${escapeHtml(attachment.filename)}" title="Download"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg></button>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  function entityCardHtml(entity){
+    return `
+      <div class="entity-card">
+        <div class="entity-card-top">
+          <div>
+            <div class="entity-card-title">${escapeHtml(entity.title)}</div>
+            ${entity.description ? `<div class="entity-card-desc">${escapeHtml(entity.description)}</div>` : ''}
+          </div>
+          ${entity.thumbnail ? `<img src="${entity.thumbnail}" class="entity-card-thumb">` : ''}
+        </div>
+        <div class="entity-card-extract">${escapeHtml(entity.extract)}</div>
+        <a href="${entity.wikipediaUrl}" target="_blank" class="entity-card-source">Wikipedia ↗</a>
+      </div>`;
+  }
+
+  function buildMessageRow(role, content, msgId, feedback, attachment, entity){
     const row = document.createElement('div');
     row.className = 'msg-row ' + role;
     let bubbleInner = '';
     if (role === 'assistant'){
+      const entityHtml = entity ? entityCardHtml(entity) : '';
       const segments = parseSegments(content);
       bubbleInner = segments.map(seg => seg.type === 'text' ? escapeHtml(seg.value) : '').join('');
       const fileSegs = segments.filter(s=>s.type==='file');
@@ -484,17 +548,22 @@
       const zipBtn = fileSegs.length > 1
         ? `<button class="quick-prompt" data-zip-all="1" style="margin-top:8px; font-size:11.5px; padding:7px 14px;">Download all ${fileSegs.length} files as .zip</button>`
         : '';
-      row.innerHTML = `<div class="msg-bubble">${bubbleInner}</div>${fileCards}${zipBtn}${messageActionsHtml(role, msgId, feedback)}`;
+      row.innerHTML = `${entityHtml}<div class="msg-bubble">${bubbleInner}</div>${fileCards}${zipBtn}${messageActionsHtml(role, msgId, feedback)}`;
     } else {
-      row.innerHTML = `<div class="msg-bubble">${escapeHtml(content)}</div>${messageActionsHtml(role, msgId, feedback)}`;
+      const attachHtml = attachment ? userAttachmentCardHtml(attachment) : '';
+      const textHtml = content ? `<div class="msg-bubble">${escapeHtml(content)}</div>` : '';
+      row.innerHTML = `${textHtml}${attachHtml}${messageActionsHtml(role, msgId, feedback)}`;
     }
     wireFileCards(row);
     wireMessageActions(row, content);
+    row.querySelectorAll('[data-download-attach]').forEach(b=>{
+      b.addEventListener('click', ()=> downloadAttachment(b.dataset.downloadAttach, b.dataset.attachName));
+    });
     const zipAllBtn = row.querySelector('[data-zip-all]');
     if (zipAllBtn){
       zipAllBtn.addEventListener('click', async ()=>{
         const zip = new JSZip();
-        row.querySelectorAll('.file-card').forEach(card=>{
+        row.querySelectorAll('.file-card[data-code-id]').forEach(card=>{
           const name = card.querySelector('.file-card-name').textContent;
           const code = card.querySelector('pre').textContent;
           zip.file(name, code);
@@ -518,15 +587,15 @@
     }
     empty.style.display = 'none'; inner.style.display = 'flex'; inner.style.flexDirection = 'column';
     inner.innerHTML = '';
-    msgs.forEach(m => inner.appendChild(buildMessageRow(m.role, m.content, m.id, m.feedback)));
+    msgs.forEach(m => inner.appendChild(buildMessageRow(m.role, m.content, m.id, m.feedback, m.attachment, null)));
     document.getElementById('messagesWrap').scrollTop = document.getElementById('messagesWrap').scrollHeight;
   }
 
-  function appendMessage(role, content, msgId){
+  function appendMessage(role, content, msgId, attachment, entity){
     const empty = document.getElementById('emptyState');
     const inner = document.getElementById('messagesInner');
     empty.style.display = 'none'; inner.style.display = 'flex'; inner.style.flexDirection = 'column';
-    const row = buildMessageRow(role, content, msgId, null);
+    const row = buildMessageRow(role, content, msgId, null, attachment, entity);
     inner.appendChild(row);
     document.getElementById('messagesWrap').scrollTop = document.getElementById('messagesWrap').scrollHeight;
     return row;
@@ -543,13 +612,16 @@
   function hideTyping(){ document.getElementById('typingIndicator')?.remove(); }
 
   // ---------- attachments (upload + paste-as-file) ----------
+  // pendingAttachment now holds the real File object — nothing is sent to
+  // the server until the message is actually sent, and the same file is
+  // then persisted server-side so it's a real, re-downloadable attachment.
   const attachPreview = document.getElementById('attachPreview');
   function renderAttachPreview(){
     if (!pendingAttachment){ attachPreview.innerHTML = ''; return; }
     attachPreview.innerHTML = `
       <div class="file-attach-chip">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg>
-        <span class="fname">${escapeHtml(pendingAttachment.filename)}</span>
+        <span class="fname">${escapeHtml(pendingAttachment.name)}</span>
         <button class="icon-btn" id="removeAttachBtn"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
       </div>`;
     document.getElementById('removeAttachBtn').addEventListener('click', ()=>{ pendingAttachment = null; renderAttachPreview(); });
@@ -557,19 +629,12 @@
 
   const fileInput = document.getElementById('fileInput');
   document.getElementById('attachBtn').addEventListener('click', ()=> fileInput.click());
-  fileInput.addEventListener('change', async ()=>{
+  fileInput.addEventListener('change', ()=>{
     const file = fileInput.files[0];
     if (!file) return;
     if (file.size > 1024*1024){ toast('File must be under 1MB', true); fileInput.value=''; return; }
-    const fd = new FormData();
-    fd.append('file', file);
-    try {
-      toast('Processing file...');
-      const data = await api('/api/chat/upload', { method:'POST', body: fd });
-      pendingAttachment = { filename: data.filename, extractedText: data.extractedText };
-      renderAttachPreview();
-      toast(`Attached ${data.filename}${data.filesRead>1 ? ` (${data.filesRead} files)` : ''}`);
-    } catch(e){ toast(e.message, true); }
+    pendingAttachment = file;
+    renderAttachPreview();
     fileInput.value = '';
   });
 
@@ -579,7 +644,7 @@
     const text = (e.clipboardData || window.clipboardData).getData('text');
     if (text && text.length > 1500){
       e.preventDefault();
-      pendingAttachment = { filename: 'pasted-text.txt', extractedText: text };
+      pendingAttachment = new File([text], 'pasted-text.txt', { type: 'text/plain' });
       renderAttachPreview();
       toast('Long paste attached as a file');
     }
@@ -640,29 +705,40 @@
 
   let userMsgCountThisSession = 0;
 
-  async function sendMessage(retrying){
+  function showQuotaBanner(show){
+    document.getElementById('quotaBanner').classList.toggle('show', show);
+    sendBtn.disabled = show;
+  }
+
+  async function sendMessage(){
     const text = input.value.trim();
-    if ((!text && !pendingAttachment) || (sending && !retrying)) return;
+    if ((!text && !pendingAttachment) || sending) return;
     sending = true; sendBtn.disabled = true;
 
-    let displayText = text;
-    let sendText = text;
-    if (pendingAttachment){
-      displayText = text ? `${text}\n\n[Attached: ${pendingAttachment.filename}]` : `[Attached: ${pendingAttachment.filename}]`;
-      sendText = `${text}\n\nAttached file "${pendingAttachment.filename}":\n${pendingAttachment.extractedText}`;
-    }
-
-    if (!retrying){
-      appendMessage('user', displayText);
-      input.value = ''; autoResize();
-      pendingAttachment = null; renderAttachPreview();
-    }
+    const attachedFile = pendingAttachment;
+    const userRow = appendMessage('user', text, null, attachedFile ? { id: null, filename: attachedFile.name, sizeBytes: attachedFile.size } : null);
+    input.value = ''; autoResize();
+    pendingAttachment = null; renderAttachPreview();
     showTyping();
 
     try {
-      const data = await api('/api/chat/send', { method:'POST', body: JSON.stringify({ conversationId: currentConvoId, message: sendText, webSearch: webSearchOn }) });
+      let data;
+      if (attachedFile){
+        const fd = new FormData();
+        fd.append('conversationId', currentConvoId || '');
+        fd.append('message', text);
+        fd.append('webSearch', webSearchOn);
+        fd.append('file', attachedFile);
+        data = await api('/api/chat/send', { method:'POST', body: fd });
+        if (data.attachment){
+          const dlBtn = userRow.querySelector('[data-download-attach]');
+          if (dlBtn) dlBtn.dataset.downloadAttach = data.attachment.id;
+        }
+      } else {
+        data = await api('/api/chat/send', { method:'POST', body: JSON.stringify({ conversationId: currentConvoId, message: text, webSearch: webSearchOn }) });
+      }
       hideTyping();
-      const row = appendMessage('assistant', data.reply, data.messageId);
+      const row = appendMessage('assistant', data.reply, data.messageId, null, data.entity);
       if (data.search?.used && data.search.sources?.length){
         const src = document.createElement('div');
         src.style.cssText = 'margin-top:6px; font-size:11px; color:var(--ink-faint);';
@@ -676,37 +752,15 @@
       maybeShowNudge();
     } catch(e){
       hideTyping();
-      if (e.message === '__NETWORK__' && !retrying){
-        // Render free tier can sleep — silently retry once after a short wait
-        // instead of immediately showing an error for what's often just a cold start.
-        showTyping();
-        setTimeout(()=> sendMessageRetryPayload(sendText), 4000);
-        return;
+      if (e.quotaExceeded){
+        showQuotaBanner(true);
+        appendMessage('assistant', `⚠ ${e.message}`);
+      } else {
+        appendMessage('assistant', `⚠ ${friendlyError(e)}`);
       }
-      appendMessage('assistant', `⚠ ${friendlyError(e)}`);
     } finally {
-      sending = false; sendBtn.disabled = false;
-    }
-  }
-
-  async function sendMessageRetryPayload(sendText){
-    try {
-      const data = await api('/api/chat/send', { method:'POST', body: JSON.stringify({ conversationId: currentConvoId, message: sendText, webSearch: webSearchOn }) });
-      hideTyping();
-      const row = appendMessage('assistant', data.reply, data.messageId);
-      if (data.search?.used && data.search.sources?.length){
-        const src = document.createElement('div');
-        src.style.cssText = 'margin-top:6px; font-size:11px; color:var(--ink-faint);';
-        src.textContent = 'Sources: ' + data.search.sources.map(s=>s.source).join(', ');
-        row.insertBefore(src, row.querySelector('.msg-actions'));
-      }
-      if (!currentConvoId){ currentConvoId = data.conversationId; loadConversations(); }
-      loadQuota();
-    } catch(e){
-      hideTyping();
-      appendMessage('assistant', `⚠ ${friendlyError(e)}`);
-    } finally {
-      sending = false; sendBtn.disabled = false;
+      sending = false;
+      if (!document.getElementById('quotaBanner').classList.contains('show')) sendBtn.disabled = false;
     }
   }
 
@@ -719,10 +773,12 @@
       if (quota.limit === null){
         label.textContent = `${quota.used.toLocaleString()} tokens used — unlimited plan`;
         fill.style.width = '4%';
+        showQuotaBanner(false);
       } else {
         const pct = Math.min(100, (quota.used/quota.limit)*100);
         label.textContent = `${quota.used.toLocaleString()} / ${quota.limit.toLocaleString()} tokens this period`;
         fill.style.width = pct + '%';
+        showQuotaBanner(quota.used >= quota.limit);
       }
     } catch(e){ document.getElementById('quotaLabel').textContent = ''; }
   }

@@ -384,7 +384,7 @@
       tbody.innerHTML = feedback.length ? feedback.map(f=>`
         <tr>
           <td>${f.email}</td>
-          <td><span class="status-pill ${f.feedback==='up'?'completed':'rejected'}">${f.feedback==='up'?'👍 up':'👎 down'}</span></td>
+          <td><span class="status-pill ${f.feedback==='up'?'completed':'rejected'}">${f.feedback==='up'?'Up':'Down'}</span></td>
           <td style="max-width:240px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${f.user_message ? escapeHtmlAdmin(f.user_message) : '—'}</td>
           <td style="max-width:280px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtmlAdmin(f.content)}</td>
           <td class="mono" style="font-size:11.5px;">${new Date(f.created_at).toISOString().slice(0,16).replace('T',' ')}</td>
