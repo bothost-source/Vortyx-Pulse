@@ -11,7 +11,7 @@ const AdmZip = require('adm-zip');
 const router = express.Router();
 router.use(requireAuth); // every route below requires a logged-in session
 
-const SYSTEM_PROMPT = "You are Vortyx Pulse, created by LONER. Only mention your name or who made you if the user directly asks who you are, what you're called, or who created you. For every other message — greetings, small talk, questions, requests — respond naturally and directly without introducing yourself. You are a real coding assistant capable of writing full websites, applications, and any code the user asks for — never say you don't have the ability to build something; just write the code. You cannot attach, upload, or send real files, zip files, or images — you can only generate text. When asked to create a file or code, output the FULL content inside a triple-backtick code block with the language name after the backticks, and never say things like \"here's the file\" or \"I've attached it\" — just show the actual code content directly.";
+const SYSTEM_PROMPT = "You are Vortyx Pulse, created by LONER. Only mention your name or who made you if the user directly asks who you are, what you're called, or who created you. For every other message — greetings, small talk, questions, requests — respond naturally and directly without introducing yourself. You are a real coding assistant capable of writing full websites, applications, and any code the user asks for — never say you don't have the ability to build something; just write the code. You cannot attach, upload, or send real files, zip files, or images — you can only generate text. CRITICAL: whenever asked to create, write, build, or generate any file, script, bot, or code, you MUST output the complete, real, working code inside a triple-backtick code block right in your reply — for example ```javascript\\ncode here\\n```. Never describe what the code would contain, never say \"here's the file\" or \"I've attached it\" or \"the file contains\" — always show the literal code itself.";
 
 // ---------------------------------------------------------------------------
 // Rate limit: in-memory sliding window per user, kept separate from the
@@ -178,16 +178,45 @@ router.post('/send', upload.single('file'), async (req, res) => {
     ];
 
     const result = await callModel({ messages: modelMessages, maxTokens: req.body.longForm ? 1500 : 900 });
-    const total = result.usage.input_tokens + result.usage.output_tokens;
+    let finalOutput = result.output;
+    let totalInputTokens = result.usage.input_tokens;
+    let totalOutputTokens = result.usage.output_tokens;
+
+    // Safety net: if the request clearly asked for code/a file but the
+    // model just described what it would contain instead of writing it
+    // (no code fence anywhere), automatically re-run once with an explicit
+    // correction. This is a real second model call, not a fake patch —
+    // it genuinely regenerates the answer.
+    const askedForCode = /\b(create|write|build|generate|make)\b.{0,40}\b(file|code|script|bot|zip|function|class|component)\b/i.test(caption);
+    const hasCodeFence = /```/.test(finalOutput);
+    if (askedForCode && !hasCodeFence) {
+      const correctionMessages = [
+        ...modelMessages,
+        { role: 'assistant', content: finalOutput },
+        { role: 'user', content: 'You described the code instead of writing it. Output the complete, real code now inside a triple-backtick code block — not a description of what it would do.' },
+      ];
+      try {
+        const retryResult = await callModel({ messages: correctionMessages, maxTokens: 1500 });
+        if (/```/.test(retryResult.output)) {
+          finalOutput = retryResult.output;
+          totalInputTokens += retryResult.usage.input_tokens;
+          totalOutputTokens += retryResult.usage.output_tokens;
+        }
+      } catch (retryErr) {
+        // If the retry itself fails, just keep the original response.
+      }
+    }
+
+    const total = totalInputTokens + totalOutputTokens;
 
     const [assistantMsg] = await Promise.all([
-      pool.query(`INSERT INTO messages (conversation_id, role, content) VALUES ($1,'assistant',$2) RETURNING id`, [convoId, result.output]),
+      pool.query(`INSERT INTO messages (conversation_id, role, content) VALUES ($1,'assistant',$2) RETURNING id`, [convoId, finalOutput]),
       pool.query(`UPDATE conversations SET updated_at = now() WHERE id = $1`, [convoId]),
       deductTokens(req.user.id, total),
       pool.query(
         `INSERT INTO request_logs (api_key_id, user_id, modality, source, input_tokens, output_tokens)
          VALUES (NULL,$1,'text','web',$2,$3)`,
-        [req.user.id, result.usage.input_tokens, result.usage.output_tokens]
+        [req.user.id, totalInputTokens, totalOutputTokens]
       ),
     ]);
 
@@ -195,8 +224,8 @@ router.post('/send', upload.single('file'), async (req, res) => {
       conversationId: convoId,
       messageId: assistantMsg.rows[0].id,
       userMessageId: userMsgId,
-      reply: result.output,
-      usage: result.usage,
+      reply: finalOutput,
+      usage: { input_tokens: totalInputTokens, output_tokens: totalOutputTokens },
       search: searchMeta,
       entity,
       attachment: req.file ? { id: req.attachmentId, filename: req.file.originalname, sizeBytes: req.file.size } : null,
