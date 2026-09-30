@@ -75,6 +75,7 @@
     <div class="nav-card">
       <button class="nav-item active" data-section="general">General</button>
       <button class="nav-item" data-section="personalization">Personalization</button>
+      <button class="nav-item" data-section="memory">Memory</button>
       <button class="nav-item" data-section="data">Data Controls</button>
       <button class="nav-item" data-section="account">Account</button>
       <button class="nav-item" data-section="keyboard">Keyboard Shortcuts</button>
@@ -112,6 +113,18 @@
             <button data-size="13px">Small</button>
             <button data-size="14.5px" class="active">Medium</button>
             <button data-size="16.5px">Large</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- MEMORY -->
+      <div class="section" id="sec-memory">
+        <div class="card">
+          <h2>Memory</h2>
+          <div class="sub">Real facts Vortyx Pulse has saved from your conversations — visible here, and only used to make future replies more relevant. Delete anything you don't want kept.</div>
+          <div id="memoryList"><div class="row"><span class="desc">Loading...</span></div></div>
+          <div style="margin-top:14px; display:flex; justify-content:flex-end;">
+            <button class="btn btn-bad" id="clearMemoryBtn">Clear all memory</button>
           </div>
         </div>
       </div>
@@ -215,6 +228,37 @@
       toast('Font size saved — applies in chat');
     });
   });
+
+  // ---------- memory ----------
+  async function loadMemory(){
+    try {
+      const { memories } = await api('/api/memory');
+      const list = document.getElementById('memoryList');
+      if (!memories.length){
+        list.innerHTML = `<div class="row"><span class="desc">Nothing saved yet — Vortyx Pulse will remember things you tell it to.</span></div>`;
+        return;
+      }
+      list.innerHTML = memories.map(m => `
+        <div class="row">
+          <div><div class="label">${m.content.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}</div><div class="desc">${new Date(m.created_at).toISOString().slice(0,10)}</div></div>
+          <button class="btn btn-bad" data-del-mem="${m.id}" style="padding:5px 10px; font-size:11.5px;">Delete</button>
+        </div>`).join('');
+      list.querySelectorAll('[data-del-mem]').forEach(b=>{
+        b.addEventListener('click', async ()=>{
+          try { await api('/api/memory/'+b.dataset.delMem, { method:'DELETE' }); loadMemory(); toast('Deleted'); }
+          catch(e){ toast(e.message, true); }
+        });
+      });
+    } catch(e){
+      document.getElementById('memoryList').innerHTML = `<div class="row"><span class="desc">Couldn't load memory: ${e.message}</span></div>`;
+    }
+  }
+  document.getElementById('clearMemoryBtn').addEventListener('click', async ()=>{
+    if (!confirm('Delete everything Vortyx Pulse remembers about you?')) return;
+    try { await api('/api/memory', { method:'DELETE' }); loadMemory(); toast('Memory cleared'); }
+    catch(e){ toast(e.message, true); }
+  });
+  loadMemory();
 
   // ---------- clear all conversations ----------
   document.getElementById('clearAllBtn').addEventListener('click', async ()=>{

@@ -5,6 +5,7 @@ const { getPlanLimits } = require('../config/plans');
 const { callModel } = require('../lib/model');
 const { googleSearch, buildSearchAugmentedPrompt } = require('../lib/search');
 const { lookupWikipediaEntity } = require('../lib/wikipedia');
+const { executeTool, getUserMemories, TOOLS_DESCRIPTION } = require('../lib/tools');
 const multer = require('multer');
 const AdmZip = require('adm-zip');
 
@@ -168,8 +169,13 @@ router.post('/send', upload.single('file'), async (req, res) => {
       if (error) console.error('web search failed:', error);
     }
 
+    const memories = await getUserMemories(req.user.id);
+    const memoryBlock = memories.length
+      ? `\n\nKnown facts about this user (from earlier conversations):\n${memories.map(m => `- ${m.content}`).join('\n')}`
+      : '';
+
     const modelMessages = [
-      { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'system', content: SYSTEM_PROMPT + '\n\n' + TOOLS_DESCRIPTION + memoryBlock },
       ...priorRows.rows.map(m => ({
         role: m.role,
         content: m.attachment_text ? `${m.content}\n\n[Earlier attached file content]:\n${m.attachment_text.slice(0, 3000)}` : m.content,
@@ -177,10 +183,39 @@ router.post('/send', upload.single('file'), async (req, res) => {
       { role: 'user', content: latestContent },
     ];
 
-    const result = await callModel({ messages: modelMessages, maxTokens: req.body.longForm ? 1500 : 900 });
+    let result = await callModel({ messages: modelMessages, maxTokens: req.body.longForm ? 1500 : 900 });
     let finalOutput = result.output;
     let totalInputTokens = result.usage.input_tokens;
     let totalOutputTokens = result.usage.output_tokens;
+    const toolsUsed = [];
+
+    // Real tool-call loop (max 2 calls per message, so a confused model
+    // can't loop forever). The model requests a tool with a <tool_call>
+    // tag; we execute it for real and feed the real result back.
+    for (let i = 0; i < 2; i++) {
+      const m = finalOutput.match(/<tool_call>\s*(\{[\s\S]*?\})\s*<\/tool_call>/);
+      if (!m) break;
+      let call;
+      try { call = JSON.parse(m[1]); } catch { break; }
+      if (!call?.name) break;
+
+      const toolResult = await executeTool(call.name, call.arguments, req.user.id);
+      toolsUsed.push(call.name);
+
+      const followUp = [
+        ...modelMessages,
+        { role: 'assistant', content: finalOutput },
+        { role: 'user', content: `<tool_result>${JSON.stringify(toolResult)}</tool_result>\nUse this real result to answer the original question. Don't mention the tag format.` },
+      ];
+      const followResult = await callModel({ messages: followUp, maxTokens: 900 });
+      finalOutput = followResult.output;
+      totalInputTokens += followResult.usage.input_tokens;
+      totalOutputTokens += followResult.usage.output_tokens;
+    }
+
+    // Safety cleanup: never show a raw tool tag to the user if the loop
+    // exited without fully resolving one (e.g. bad JSON, or hit the cap).
+    finalOutput = finalOutput.replace(/<tool_call>[\s\S]*?<\/tool_call>/g, '').trim() || finalOutput;
 
     // Safety net: if the request clearly asked for code/a file but the
     // model just described what it would contain instead of writing it
@@ -189,6 +224,7 @@ router.post('/send', upload.single('file'), async (req, res) => {
     // it genuinely regenerates the answer.
     const askedForCode = /\b(create|write|build|generate|make)\b.{0,40}\b(file|code|script|bot|zip|function|class|component)\b/i.test(caption);
     const hasCodeFence = /```/.test(finalOutput);
+    let retried = false;
     if (askedForCode && !hasCodeFence) {
       const correctionMessages = [
         ...modelMessages,
@@ -201,6 +237,7 @@ router.post('/send', upload.single('file'), async (req, res) => {
           finalOutput = retryResult.output;
           totalInputTokens += retryResult.usage.input_tokens;
           totalOutputTokens += retryResult.usage.output_tokens;
+          retried = true;
         }
       } catch (retryErr) {
         // If the retry itself fails, just keep the original response.
@@ -208,6 +245,14 @@ router.post('/send', upload.single('file'), async (req, res) => {
     }
 
     const total = totalInputTokens + totalOutputTokens;
+
+    // Deterministic summary of what's actually in the response — parsed
+    // from the real output, not the model's own (unreliable) self-report.
+    const fileMatches = [...finalOutput.matchAll(/```(\w+)\n([\s\S]*?)```/g)];
+    const filesSummary = fileMatches.map(m => ({
+      language: m[1] || 'text',
+      lines: m[2].split('\n').length,
+    }));
 
     const [assistantMsg] = await Promise.all([
       pool.query(`INSERT INTO messages (conversation_id, role, content) VALUES ($1,'assistant',$2) RETURNING id`, [convoId, finalOutput]),
@@ -228,6 +273,9 @@ router.post('/send', upload.single('file'), async (req, res) => {
       usage: { input_tokens: totalInputTokens, output_tokens: totalOutputTokens },
       search: searchMeta,
       entity,
+      retried,
+      toolsUsed,
+      files: filesSummary,
       attachment: req.file ? { id: req.attachmentId, filename: req.file.originalname, sizeBytes: req.file.size } : null,
     });
   } catch (err) {

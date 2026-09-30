@@ -14,6 +14,7 @@ const reportsRoutes = require('./routes/reports');
 const v1Routes = require('./routes/v1');
 const chatRoutes = require('./routes/chat');
 const accountRoutes = require('./routes/account');
+const memoryRoutes = require('./routes/memory');
 
 const app = express();
 
@@ -32,6 +33,7 @@ app.use('/api/usage', usageRoutes);
 app.use('/api/reports', reportsRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/account', accountRoutes);
+app.use('/api/memory', memoryRoutes);
 
 app.use('/v1', v1Routes);
 

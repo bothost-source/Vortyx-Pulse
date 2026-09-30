@@ -108,6 +108,15 @@
   .typing-dots span:nth-child(2){animation-delay:.2s;} .typing-dots span:nth-child(3){animation-delay:.4s;}
   @keyframes blink{0%,80%,100%{opacity:.25;}40%{opacity:1;}}
 
+  .status-steps{display:flex; flex-direction:column; gap:6px; font-size:12px; color:var(--ink-faint); padding:2px 0 8px;}
+  .status-step{display:flex; align-items:center; gap:8px;}
+  .status-step .dot{width:6px; height:6px; border-radius:50%; background:var(--ink-faint); flex-shrink:0;}
+  .status-step.done .dot{background:var(--good);}
+  .status-step.done{color:var(--ink-dim);}
+
+  .gen-summary{border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin-top:8px; font-size:11.5px; color:var(--ink-faint); max-width:420px;}
+  .gen-summary b{color:var(--ink-dim);}
+
   .input-bar{padding:12px 20px 18px; flex-shrink:0;}
   .quota-banner{display:none; max-width:760px; margin:0 auto 10px; align-items:center; justify-content:space-between; gap:14px; padding:10px 16px; border-radius:12px; background:rgba(224,163,163,0.08); border:1px solid rgba(224,163,163,0.3); font-size:12.5px; color:var(--ink-dim);}
   .quota-banner.show{display:flex;}
@@ -601,13 +610,18 @@
     return row;
   }
 
-  function showTyping(){
+  function showTyping(steps){
     const inner = document.getElementById('messagesInner');
     const div = document.createElement('div');
     div.className = 'typing-row'; div.id = 'typingIndicator';
-    div.innerHTML = `<span>Thinking</span><div class="typing-dots"><span></span><span></span><span></span></div>`;
+    div.style.flexDirection = 'column'; div.style.alignItems = 'flex-start';
+    const stepsHtml = steps.map((s,i)=>`<div class="status-step" data-step="${i}"><span class="dot"></span><span>${s}</span></div>`).join('');
+    div.innerHTML = `<div class="status-steps">${stepsHtml}</div><div style="display:flex;align-items:center;gap:8px;"><span>Thinking</span><div class="typing-dots"><span></span><span></span><span></span></div></div>`;
     inner.appendChild(div);
     document.getElementById('messagesWrap').scrollTop = document.getElementById('messagesWrap').scrollHeight;
+  }
+  function markStepDone(i){
+    document.querySelector(`#typingIndicator [data-step="${i}"]`)?.classList.add('done');
   }
   function hideTyping(){ document.getElementById('typingIndicator')?.remove(); }
 
@@ -719,7 +733,17 @@
     const userRow = appendMessage('user', text, null, attachedFile ? { id: null, filename: attachedFile.name, sizeBytes: attachedFile.size } : null);
     input.value = ''; autoResize();
     pendingAttachment = null; renderAttachPreview();
-    showTyping();
+
+    // Real steps, built from what we actually know is about to happen —
+    // not decorative fake progress.
+    const steps = [];
+    if (attachedFile) steps.push('Reading your file...');
+    if (webSearchOn) steps.push('Searching the web...');
+    steps.push('Generating a response...');
+    showTyping(steps);
+    let stepTimers = [];
+    if (attachedFile) stepTimers.push(setTimeout(()=> markStepDone(0), 700));
+    if (webSearchOn) stepTimers.push(setTimeout(()=> markStepDone(attachedFile ? 1 : 0), 1400));
 
     try {
       let data;
@@ -737,20 +761,45 @@
       } else {
         data = await api('/api/chat/send', { method:'POST', body: JSON.stringify({ conversationId: currentConvoId, message: text, webSearch: webSearchOn }) });
       }
+      stepTimers.forEach(clearTimeout);
       hideTyping();
       const row = appendMessage('assistant', data.reply, data.messageId, null, data.entity);
+      const actionsEl = row.querySelector('.msg-actions');
+
+      if (data.toolsUsed?.length){
+        const toolLabels = { web_search: 'Searched the web', calculate: 'Used the calculator', remember: 'Saved to memory' };
+        const note = document.createElement('div');
+        note.style.cssText = 'margin-bottom:6px; font-size:11px; color:var(--ink-faint);';
+        note.textContent = data.toolsUsed.map(t => toolLabels[t] || t).join(' · ');
+        row.insertBefore(note, row.firstChild);
+      }
+      if (data.retried){
+        const note = document.createElement('div');
+        note.style.cssText = 'margin-bottom:6px; font-size:11px; color:var(--ink-faint);';
+        note.textContent = 'Double-checked this and rewrote it to include the real code.';
+        row.insertBefore(note, row.firstChild);
+      }
       if (data.search?.used && data.search.sources?.length){
         const src = document.createElement('div');
         src.style.cssText = 'margin-top:6px; font-size:11px; color:var(--ink-faint);';
         src.textContent = 'Sources: ' + data.search.sources.map(s=>s.source).join(', ');
-        row.insertBefore(src, row.querySelector('.msg-actions'));
+        row.insertBefore(src, actionsEl);
       }
+      if (data.files?.length > 1){
+        const summary = document.createElement('div');
+        summary.className = 'gen-summary';
+        summary.innerHTML = '<b>Generated ' + data.files.length + ' files:</b> ' +
+          data.files.map(f => `${f.language} (${f.lines} lines)`).join(', ');
+        row.insertBefore(summary, actionsEl);
+      }
+
       if (!currentConvoId){ currentConvoId = data.conversationId; loadConversations(); }
       loadQuota();
 
       userMsgCountThisSession++;
       maybeShowNudge();
     } catch(e){
+      stepTimers.forEach(clearTimeout);
       hideTyping();
       if (e.quotaExceeded){
         showQuotaBanner(true);

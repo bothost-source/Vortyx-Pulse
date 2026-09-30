@@ -106,6 +106,16 @@ CREATE TABLE IF NOT EXISTS message_attachments (
 );
 CREATE INDEX IF NOT EXISTS idx_attachments_message ON message_attachments(message_id);
 
+-- Real persistent memory the model can write to and read from — visible
+-- and deletable by the user in Settings, not a hidden fake feature.
+CREATE TABLE IF NOT EXISTS user_memories (
+  id BIGSERIAL PRIMARY KEY,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  content TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_memories_user ON user_memories(user_id, created_at DESC);
+
 -- ============ USAGE (optional, for the Usage dashboard tab) ============
 CREATE TABLE IF NOT EXISTS request_logs (
   id BIGSERIAL PRIMARY KEY,
