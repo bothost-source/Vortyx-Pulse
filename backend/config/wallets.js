@@ -5,29 +5,25 @@
 // ---------------------------------------------------------------------------
 
 const WALLETS = {
+const WALLETS = {
   USDT: {
-    address: 'PUT-YOUR-USDT-ADDRESS-HERE',
-    network: 'TRC20', // or 'ERC20' — must match whichever address you paste above
+    address: 'TC25PoXQYxFzSbMNoFFgVwSna8yBLTxyQh',
+    network: 'TRC20',
   },
   BTC: {
-    address: 'PUT-YOUR-BTC-ADDRESS-HERE',
+    address: '1L4s7WG9X24F8inKsmLWx5GJQzBgm3AbDp',
     network: 'Bitcoin',
   },
   LTC: {
-    address: 'PUT-YOUR-LTC-ADDRESS-HERE',
+    address: 'LMW6iLGT61rv1rdWFnUP1gEcEpjnM94u1q',
     network: 'Litecoin',
   },
   ETH: {
-    address: 'PUT-YOUR-ETH-ADDRESS-HERE',
+    address: '0x32a0cc4a7390a9c8a5e21c4e1c92e811c8171699',
     network: 'ERC20',
   },
 };
 
-// Loose format checks only — this confirms the transaction ID at least LOOKS
-// like a real hash for that chain before it's submitted. It does NOT check
-// the blockchain itself (that requires a paid explorer API per chain), so a
-// human admin still needs to manually confirm the transaction actually
-// happened and paid the right amount to the right address.
 const TX_FORMATS = {
   USDT: /^(0x[a-fA-F0-9]{64}|[a-fA-F0-9]{64})$/, // ERC20 or TRC20 tx hash
   BTC: /^[a-fA-F0-9]{64}$/,
