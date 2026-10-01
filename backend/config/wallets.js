@@ -1,10 +1,4 @@
-// ---------------------------------------------------------------------------
-// Fill in YOUR real wallet addresses below. These are shown to users on the
-// Billing page so they know where to send payment, and used by the admin
-// panel to build a block-explorer link for manually verifying a transaction.
-// ---------------------------------------------------------------------------
 
-const WALLETS = {
 const WALLETS = {
   USDT: {
     address: 'TC25PoXQYxFzSbMNoFFgVwSna8yBLTxyQh',
