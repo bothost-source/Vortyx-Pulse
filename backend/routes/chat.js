@@ -120,6 +120,18 @@ router.post('/send', upload.single('file'), async (req, res) => {
       convoId = rows[0].id;
     }
 
+    // Validate the file (if any) BEFORE writing anything to the database.
+    // An unsupported file must never leave a dangling user message with no
+    // reply — that corrupted later turns in this exact way before.
+    let attachmentText = null;
+    if (req.file) {
+      const { text } = extractFileText(req.file.originalname, req.file.buffer, req.file.mimetype);
+      if (text === null) {
+        return res.status(422).json({ error: "This file type isn't supported yet — Vortyx Pulse can read text/code files and .zip archives of them." });
+      }
+      attachmentText = text;
+    }
+
     // Pull prior turns (with any attachment text) for real multi-turn memory.
     const priorRows = await pool.query(
       `SELECT m.role, m.content, a.extracted_text AS attachment_text
@@ -137,17 +149,11 @@ router.post('/send', upload.single('file'), async (req, res) => {
     );
     const userMsgId = userMsg.rows[0].id;
 
-    let attachmentText = null;
     if (req.file) {
-      const { text, filesRead } = extractFileText(req.file.originalname, req.file.buffer, req.file.mimetype);
-      if (text === null) {
-        return res.status(422).json({ error: "This file type isn't supported yet — Vortyx Pulse can read text/code files and .zip archives of them." });
-      }
-      attachmentText = text;
       const attachRow = await pool.query(
         `INSERT INTO message_attachments (message_id, filename, mime_type, size_bytes, content, extracted_text)
          VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`,
-        [userMsgId, req.file.originalname, req.file.mimetype, req.file.size, req.file.buffer, text]
+        [userMsgId, req.file.originalname, req.file.mimetype, req.file.size, req.file.buffer, attachmentText]
       );
       req.attachmentId = attachRow.rows[0].id;
     }
