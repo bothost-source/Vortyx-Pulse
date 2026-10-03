@@ -1,23 +1,33 @@
+// ---------------------------------------------------------------------------
+// Fill in YOUR real wallet addresses below. These are shown to users on the
+// Billing page so they know where to send payment, and used by the admin
+// panel to build a block-explorer link for manually verifying a transaction.
+// ---------------------------------------------------------------------------
 
 const WALLETS = {
   USDT: {
-    address: 'TC25PoXQYxFzSbMNoFFgVwSna8yBLTxyQh',
-    network: 'TRC20',
+    address: 'PUT-YOUR-USDT-ADDRESS-HERE',
+    network: 'TRC20', // or 'ERC20' — must match whichever address you paste above
   },
   BTC: {
-    address: '1L4s7WG9X24F8inKsmLWx5GJQzBgm3AbDp',
+    address: 'PUT-YOUR-BTC-ADDRESS-HERE',
     network: 'Bitcoin',
   },
   LTC: {
-    address: 'LMW6iLGT61rv1rdWFnUP1gEcEpjnM94u1q',
+    address: 'PUT-YOUR-LTC-ADDRESS-HERE',
     network: 'Litecoin',
   },
   ETH: {
-    address: '0x32a0cc4a7390a9c8a5e21c4e1c92e811c8171699',
+    address: 'PUT-YOUR-ETH-ADDRESS-HERE',
     network: 'ERC20',
   },
 };
 
+// Loose format checks only — this confirms the transaction ID at least LOOKS
+// like a real hash for that chain before it's submitted. It does NOT check
+// the blockchain itself (that requires a paid explorer API per chain), so a
+// human admin still needs to manually confirm the transaction actually
+// happened and paid the right amount to the right address.
 const TX_FORMATS = {
   USDT: /^(0x[a-fA-F0-9]{64}|[a-fA-F0-9]{64})$/, // ERC20 or TRC20 tx hash
   BTC: /^[a-fA-F0-9]{64}$/,
