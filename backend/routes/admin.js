@@ -37,6 +37,22 @@ router.get('/stats/signups', async (req, res) => {
 });
 
 // ---------- PAYMENTS ----------
+// GET /api/admin/test-search — calls the real search function directly so
+// you can see exactly what's failing (missing key, API not enabled, quota
+// hit, etc.) instead of it silently falling back in the chat.
+router.get('/test-search', async (req, res) => {
+  const { googleSearch } = require('../lib/search');
+  const hasKey = !!process.env.GOOGLE_SEARCH_API_KEY;
+  const hasCseId = !!process.env.GOOGLE_SEARCH_CSE_ID;
+  const { results, error } = await googleSearch('test query');
+  res.json({
+    env: { GOOGLE_SEARCH_API_KEY_set: hasKey, GOOGLE_SEARCH_CSE_ID_set: hasCseId },
+    resultCount: results.length,
+    sampleResult: results[0] || null,
+    error,
+  });
+});
+
 router.get('/feedback', async (req, res) => {
   const { rows } = await pool.query(
     `SELECT m.id, m.content, m.feedback, m.created_at, u.email,

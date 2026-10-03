@@ -117,6 +117,17 @@
   .gen-summary{border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin-top:8px; font-size:11.5px; color:var(--ink-faint); max-width:420px;}
   .gen-summary b{color:var(--ink-dim);}
 
+  .process-panel{border:1px solid var(--line); border-radius:10px; margin-bottom:8px; max-width:420px; overflow:hidden; background:rgba(255,255,255,0.02);}
+  .process-toggle{display:flex; align-items:center; gap:8px; padding:8px 12px; cursor:pointer; font-size:11.5px; color:var(--ink-faint); user-select:none;}
+  .process-toggle:hover{color:var(--ink-dim);}
+  .process-toggle svg{transition:transform .15s; flex-shrink:0;}
+  .process-panel.open .process-toggle svg{transform:rotate(90deg);}
+  .process-body{max-height:0; overflow:hidden; transition:max-height .2s ease;}
+  .process-panel.open .process-body{max-height:300px;}
+  .process-steps{padding:2px 12px 10px 32px; display:flex; flex-direction:column; gap:7px;}
+  .process-item{display:flex; align-items:flex-start; gap:8px; font-size:11.5px; color:var(--ink-dim); position:relative;}
+  .process-item::before{content:''; position:absolute; left:-17px; top:5px; width:6px; height:6px; border-radius:50%; background:var(--good);}
+
   .input-bar{padding:12px 20px 18px; flex-shrink:0;}
   .quota-banner{display:none; max-width:760px; margin:0 auto 10px; align-items:center; justify-content:space-between; gap:14px; padding:10px 16px; border-radius:12px; background:rgba(224,163,163,0.08); border:1px solid rgba(224,163,163,0.3); font-size:12.5px; color:var(--ink-dim);}
   .quota-banner.show{display:flex;}
@@ -243,7 +254,7 @@
           </button>
         </div>
       </div>
-      <div class="input-note">Vortyx Pulse can make mistakes. Verify important code and facts.</div>
+      <div class="input-note">Enter for a new line · Ctrl+Enter to send · Vortyx Pulse can make mistakes.</div>
     </div>
   </main>
 </div>
@@ -713,7 +724,9 @@
   }
   input.addEventListener('input', autoResize);
   input.addEventListener('keydown', (e)=>{
-    if (e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); sendMessage(); }
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)){ e.preventDefault(); sendMessage(); }
+    // Plain Enter and Shift+Enter both just make a new line (default textarea behavior) —
+    // tap the send button, or use Ctrl+Enter / Cmd+Enter, to actually send.
   });
   sendBtn.addEventListener('click', sendMessage);
 
@@ -766,24 +779,27 @@
       const row = appendMessage('assistant', data.reply, data.messageId, null, data.entity);
       const actionsEl = row.querySelector('.msg-actions');
 
-      if (data.toolsUsed?.length){
-        const toolLabels = { web_search: 'Searched the web', calculate: 'Used the calculator', remember: 'Saved to memory' };
-        const note = document.createElement('div');
-        note.style.cssText = 'margin-bottom:6px; font-size:11px; color:var(--ink-faint);';
-        note.textContent = data.toolsUsed.map(t => toolLabels[t] || t).join(' · ');
-        row.insertBefore(note, row.firstChild);
-      }
-      if (data.retried){
-        const note = document.createElement('div');
-        note.style.cssText = 'margin-bottom:6px; font-size:11px; color:var(--ink-faint);';
-        note.textContent = 'Double-checked this and rewrote it to include the real code.';
-        row.insertBefore(note, row.firstChild);
-      }
+      // Build one expandable panel listing only steps that genuinely
+      // happened on this request — nothing here is decorative.
+      const toolLabels = { web_search: 'Searched the web', calculate: 'Used the calculator', remember: 'Saved a new fact to memory' };
+      const realSteps = [];
+      (data.toolsUsed || []).forEach(t => realSteps.push(toolLabels[t] || `Used ${t}`));
       if (data.search?.used && data.search.sources?.length){
-        const src = document.createElement('div');
-        src.style.cssText = 'margin-top:6px; font-size:11px; color:var(--ink-faint);';
-        src.textContent = 'Sources: ' + data.search.sources.map(s=>s.source).join(', ');
-        row.insertBefore(src, actionsEl);
+        realSteps.push('Read ' + data.search.sources.length + ' web source' + (data.search.sources.length>1?'s':'') + ': ' + data.search.sources.map(s=>s.source).join(', '));
+      }
+      if (data.retried) realSteps.push('Noticed the first draft only described the code, so it rewrote the reply with the real code included.');
+
+      if (realSteps.length){
+        const panel = document.createElement('div');
+        panel.className = 'process-panel';
+        panel.innerHTML = `
+          <div class="process-toggle">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M9 18l6-6-6-6"/></svg>
+            <span>${realSteps.length} step${realSteps.length>1?'s':''} taken</span>
+          </div>
+          <div class="process-body"><div class="process-steps">${realSteps.map(s=>`<div class="process-item">${escapeHtml(s)}</div>`).join('')}</div></div>`;
+        panel.querySelector('.process-toggle').addEventListener('click', ()=> panel.classList.toggle('open'));
+        row.insertBefore(panel, row.firstChild);
       }
       if (data.files?.length > 1){
         const summary = document.createElement('div');

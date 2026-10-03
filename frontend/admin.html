@@ -105,6 +105,7 @@
       <a data-view="feedback"><span class="ic">✓</span>Feedback</a>
       <a data-view="keys"><span class="ic">⚿</span>API Keys</a>
       <div class="side-sep"></div>
+      <a id="copyTokenBtn"><span class="ic">⚿</span>Copy session token</a>
       <a id="logoutBtn"><span class="ic">⏻</span>Sign out</a>
     </div>
   </div>
@@ -238,6 +239,9 @@
       document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
       document.getElementById('view-'+a.dataset.view).classList.add('active');
     });
+  });
+  document.getElementById('copyTokenBtn').addEventListener('click', ()=>{
+    navigator.clipboard.writeText(token).then(()=>toast('Session token copied')).catch(()=>toast('Copy failed', true));
   });
   document.getElementById('logoutBtn').addEventListener('click', ()=>{
     localStorage.removeItem('vortyx_token'); localStorage.removeItem('vortyx_user');
